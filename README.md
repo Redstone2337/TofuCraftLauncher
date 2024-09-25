@@ -2,7 +2,7 @@
     <img width="75" src="/FCL/src/main/res/drawable/img_app.png"></img>
 </div>
 
-<h1 align="center">Fold Craft Launcher</h1>
+<h1 align="center">Tofu Craft Launcher 5</h1>
 
 <div align="center">
 
