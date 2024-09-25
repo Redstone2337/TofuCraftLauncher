@@ -15,7 +15,7 @@ dependencyResolutionManagement {
         }
     }
 }
-rootProject.name = "Fold Craft Launcher"
+rootProject.name = "Tofu Craft Launcher 5"
 include ':FCL'
 include ':FCLCore'
 include ':FCLauncher'
