@@ -41,11 +41,11 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.tungsten.fcl"
+        applicationId "com.redstone233.tcl"
         minSdk 26
         targetSdk 34
-        versionCode 1181
-        versionName "1.1.8.1"
+        versionCode 1183
+        versionName "1.1.8.3"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
