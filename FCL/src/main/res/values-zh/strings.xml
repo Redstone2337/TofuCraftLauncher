@@ -15,6 +15,7 @@
 
     <string name="account">账户管理</string>
     <string name="version">版本列表</string>
+    <string name="launch_mode">启动方式</string>
     <string name="manage">管理版本</string>
     <string name="download">下载资源</string>
     <string name="controller">控制布局</string>
@@ -86,6 +87,7 @@
 
     <string name="action_refresh">刷新</string>
     <string name="action_retry">重试</string>
+    <string name="action_share">分享</string>
     <string name="action_skip">跳过</string>
 
     <string name="announcement">公告：%s</string>
@@ -126,13 +128,30 @@
 
     <string name="control_create">创建新布局</string>
     <string name="control_delete">你确定要删除该布局吗？</string>
+    <string name="control_download">下载布局</string>
+    <string name="control_download_latest">下载最新版</string>
+    <string name="control_download_history">下载历史版本</string>
+    <string name="control_download_history_empty">没有历史版本！</string>
+    <string name="control_download_lang_current">当前语言</string>
+    <string name="control_download_source_cn">国内源</string>
+    <string name="control_download_device_phone">手机</string>
+    <string name="control_download_device_pad">平板</string>
+    <string name="control_download_device_other">其他</string>
+    <string name="control_download_exist">当前控件已存在，下载将会覆盖本地控件，确定要继续吗？</string>
     <string name="control_edit">编辑布局方案</string>
     <string name="control_import">导入布局</string>
     <string name="control_import_failed">导入布局失败！</string>
     <string name="control_upgrade">布局方案：%s 是一个过时的布局方案，它可能导致一些未知的错误，但我们仍然支持加载它，是否将其迁移至新版？</string>
     <string name="control_incompatible">布局方案：%s 是一个不兼容的布局方案，这可能是由于启动器版本过低或控件版本过低导致的，请检查。</string>
+    <string name="control_upload_requirement">请先加入 QQ 群，然后点击“分享”按键，分享你的控件和基本信息，等待管理员审核。请联系管理员告知你的控件类型。</string>
     <string name="control_info_author">作者：</string>
+    <string name="control_info_icon">图标：</string>
+    <string name="control_info_lang">语言：</string>
+    <string name="control_info_device">设备类型：</string>
+    <string name="control_info_screenshot">截图：</string>
+    <string name="control_info_intro">简介：</string>
     <string name="control_info_description">描述：</string>
+    <string name="control_info_screenshot_max">最多可以上传 16 张截图！</string>
     <string name="control_info_edit">编辑布局信息</string>
     <string name="control_info_more">更多信息</string>
     <string name="control_info_name">名称：</string>
@@ -143,6 +162,7 @@
     <string name="control_list">布局列表</string>
     <string name="control_select">选择布局</string>
     <string name="control_share">分享布局</string>
+    <string name="control_upload">上传布局</string>
 
     <string name="curse_category_0">全部</string>
 
@@ -432,7 +452,8 @@
     <string name="jar_executor_crash_title">Jar Executor 意外退出</string>
     <string name="jar_executor_crash_reason">尚不支持 Jar Executor 崩溃原因分析。</string>
 
-    <string name="launch">启动游戏</string>
+    <string name="launch">Pojav</string>
+    <string name="launch_boat">Boat</string>
     <string name="launch_error_java">你正在使用不推荐的 Java 版本，确定要继续吗？</string>
     <string name="launch_error_java_auto">自动选择</string>
     <string name="launch_error_java_continue">继续</string>
@@ -498,6 +519,7 @@
     <string name="menu_settings_gyro">陀螺仪</string>
     <string name="menu_settings_gyro_sensitivity">陀螺仪灵敏度</string>
     <string name="menu_settings_lock_view">锁定菜单键</string>
+    <string name="menu_settings_show_fps">显示FPS</string>
     <string name="menu_settings_mouse">鼠标</string>
     <string name="menu_settings_mouse_mode">鼠标控制模式</string>
     <string name="menu_settings_mouse_mode_click">点击</string>
@@ -701,6 +723,7 @@
     <string name="search">搜索</string>
     <string name="search_hint_chinese">支持中英文搜索</string>
     <string name="search_hint_english">仅支持英文搜索</string>
+    <string name="search_device">设备类型</string>
     <string name="search_sort">排序</string>
     <string name="search_first_page">第一页</string>
     <string name="search_last_page">最后一页</string>
@@ -751,6 +774,7 @@
     <string name="settings_launcher_launcher_log_export_failed">无法导出日志</string>
     <string name="settings_launcher_launcher_log_export_success">日志已被导出至 %s</string>
     <string name="settings_launcher_theme">主题</string>
+    <string name="settings_launcher_theme2">主题2</string>
     <string name="settings_launcher_background_lt">亮色模式启动器背景图片</string>
     <string name="settings_launcher_background_dk">暗色模式启动器背景图片</string>
     <string name="settings_launcher_cursor">鼠标图片</string>
@@ -800,6 +824,7 @@
 
     <string name="update">更新</string>
     <string name="update_netdisk">网盘</string>
+    <string name="update_check">检查更新</string>
     <string name="update_checking">正在检查更新</string>
     <string name="update_check_failed">无法检测更新</string>
     <string name="update_date">日期：%s</string>
