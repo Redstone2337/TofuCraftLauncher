@@ -26,6 +26,7 @@ import com.mio.util.AnimUtil
 import com.mio.util.AnimUtil.Companion.interpolator
 import com.mio.util.AnimUtil.Companion.startAfter
 import com.mio.util.GuideUtil
+import com.mio.util.RendererUtil
 import com.tungsten.fcl.R
 import com.tungsten.fcl.databinding.ActivityMainBinding
 import com.tungsten.fcl.game.JarExecutorHelper
@@ -116,6 +117,10 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
 
                     @Throws(IOException::class)
                     override fun loadVersions(modRepository: RemoteModRepository): Stream<RemoteMod.Version> {
+                        throw IOException()
+                    }
+
+                    override fun loadScreenshots(modRepository: RemoteModRepository): MutableList<RemoteMod.Screenshot> {
                         throw IOException()
                     }
                 })
@@ -314,9 +319,19 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
             if (view === launch) {
                 if (!Controllers.isInitialized()) {
                     title.setTextWithAnim(getString(R.string.message_loading_controllers))
+                    AnimUtil.playTranslationX(launch, 700, 0f, 50f, -50f, 50f, -50f, 0f)
+                        .interpolator(OvershootInterpolator()).start()
+                    AnimUtil.playTranslationX(launchBoat, 700, 0f, 50f, -50f, 50f, -50f, 0f)
+                        .interpolator(OvershootInterpolator()).start()
                     return
                 }
-                Versions.launch(this@MainActivity, Profiles.getSelectedProfile())
+                val selectedProfile = Profiles.getSelectedProfile()
+                RendererPlugin.rendererList.forEach {
+                    if (it.des == selectedProfile.getVersionSetting(selectedProfile.selectedVersion).customRenderer) {
+                        RendererPlugin.selected = it
+                    }
+                }
+                Versions.launch(this@MainActivity, selectedProfile)
             }
             if (view === launchBoat) {
                 FCLBridge.BACKEND_IS_BOAT = true;
@@ -473,50 +488,10 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
     }
 
     private fun openRendererMenu(view: View) {
-        val listView = ListView(this)
-        var popupWindow: PopupWindow? = null
-        listView.adapter =
-            ArrayAdapter(this, R.layout.item_renderer, mutableListOf<String>().apply {
-                add(getString(R.string.settings_fcl_renderer_gl4es))
-                add(getString(R.string.settings_fcl_renderer_virgl))
-                add(getString(R.string.settings_fcl_renderer_ltw))
-                add(getString(R.string.settings_fcl_renderer_vgpu))
-                add(getString(R.string.settings_fcl_renderer_zink))
-                add(getString(R.string.settings_fcl_renderer_freedreno))
-                RendererPlugin.rendererList.forEach {
-                    add(it.des)
-                }
-            })
-        listView.setOnItemClickListener { _, _, position, _ ->
-            val selectedProfile = Profiles.getSelectedProfile()
-            val versionSetting = selectedProfile.getVersionSetting(selectedProfile.selectedVersion)
-            val rendererList = mutableListOf<FCLConfig.Renderer>().apply {
-                add(FCLConfig.Renderer.RENDERER_GL4ES)
-                add(FCLConfig.Renderer.RENDERER_VIRGL)
-                add(FCLConfig.Renderer.RENDERER_LTW)
-                add(FCLConfig.Renderer.RENDERER_VGPU)
-                add(FCLConfig.Renderer.RENDERER_ZINK)
-                add(FCLConfig.Renderer.RENDERER_FREEDRENO)
-            }
-            if (position > rendererList.size - 1) {
-                versionSetting.renderer = FCLConfig.Renderer.RENDERER_CUSTOM
-                RendererPlugin.selected = RendererPlugin.rendererList[position - rendererList.size]
-            } else {
-                versionSetting.renderer = rendererList[position]
-            }
-            popupWindow?.dismiss()
+        RendererUtil.openRendererMenu(
+            this, view, bind.rightMenu.width, bind.launch.y.toInt()
+        ) {
             onClick(view)
-        }
-        popupWindow = PopupWindow(
-            listView,
-            bind.rightMenu.width,
-            bind.launch.y.toInt()
-        ).apply {
-            isClippingEnabled = false
-            isOutsideTouchable = true
-            enterTransition = Slide(Gravity.TOP)
-            exitTransition = Slide(Gravity.TOP)
-            showAsDropDown(view)
         }
     }
 
