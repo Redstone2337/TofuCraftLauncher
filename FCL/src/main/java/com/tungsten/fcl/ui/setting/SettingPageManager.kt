@@ -5,6 +5,7 @@ import com.tungsten.fcl.R
 import com.tungsten.fcl.setting.Profiles
 import com.tungsten.fcl.ui.PageManager
 import com.tungsten.fcl.ui.UIListener
+import com.tungsten.fcl.ui.controller.ControllerRepoPage
 import com.tungsten.fcl.ui.manage.VersionSettingPage
 import com.tungsten.fcllibrary.component.ui.FCLCommonPage
 import com.tungsten.fcllibrary.component.view.FCLUILayout
@@ -23,6 +24,7 @@ class SettingPageManager(
         const val PAGE_ID_SETTING_HELP: Int = 15032
         const val PAGE_ID_SETTING_COMMUNITY: Int = 15033
         const val PAGE_ID_SETTING_ABOUT: Int = 15034
+        const val PAGE_ID_SETTING_CONTROLLER_REPO: Int = 15035
     }
 
     init {
@@ -35,17 +37,20 @@ class SettingPageManager(
             context,
             PAGE_ID_SETTING_LAUNCHER,
             parent,
-            R.layout.page_launcher_setting
+            R.layout.page_setting_launcher
         )
     }
     private val helpPage: HelpPage by lazy {
-        HelpPage(context, PAGE_ID_SETTING_HELP, parent, R.layout.page_help)
+        HelpPage(context, PAGE_ID_SETTING_HELP, parent, R.layout.page_setting_help)
     }
     private val communityPage: CommunityPage by lazy {
-        CommunityPage(context, PAGE_ID_SETTING_COMMUNITY, parent, R.layout.page_community)
+        CommunityPage(context, PAGE_ID_SETTING_COMMUNITY, parent, R.layout.page_setting_community)
     }
     private val aboutPage: AboutPage by lazy {
-        AboutPage(context, PAGE_ID_SETTING_ABOUT, parent, R.layout.page_about)
+        AboutPage(context, PAGE_ID_SETTING_ABOUT, parent, R.layout.page_setting_about)
+    }
+    private val controllerRepoPage: ControllerRepoPage by lazy {
+        ControllerRepoPage(context, PAGE_ID_SETTING_CONTROLLER_REPO, parent, R.layout.page_controller_repo)
     }
 
 
@@ -73,6 +78,7 @@ class SettingPageManager(
             PAGE_ID_SETTING_HELP -> helpPage
             PAGE_ID_SETTING_COMMUNITY -> communityPage
             PAGE_ID_SETTING_ABOUT -> aboutPage
+            PAGE_ID_SETTING_CONTROLLER_REPO -> controllerRepoPage
             else -> null
         }
         return page

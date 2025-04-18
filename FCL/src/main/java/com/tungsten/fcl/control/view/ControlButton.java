@@ -8,8 +8,6 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
-import android.os.VibrationEffect;
-import android.os.Vibrator;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -35,6 +33,7 @@ import com.tungsten.fcl.control.data.CustomControl;
 import com.tungsten.fcl.util.AndroidUtils;
 import com.tungsten.fclauncher.bridge.FCLBridge;
 import com.tungsten.fclauncher.keycodes.FCLKeycodes;
+import com.tungsten.fclauncher.keycodes.LwjglKeycodeMap;
 import com.tungsten.fclcore.fakefx.beans.InvalidationListener;
 import com.tungsten.fclcore.fakefx.beans.binding.Bindings;
 import com.tungsten.fclcore.fakefx.beans.property.BooleanProperty;
@@ -44,8 +43,9 @@ import com.tungsten.fclcore.fakefx.beans.property.SimpleBooleanProperty;
 import com.tungsten.fclcore.fakefx.beans.property.SimpleObjectProperty;
 import com.tungsten.fclcore.task.Schedulers;
 import com.tungsten.fclcore.util.StringUtils;
-import com.tungsten.fcllibrary.component.dialog.FCLAlertDialog;
 import com.tungsten.fcllibrary.util.ConvertUtils;
+
+import org.lwjgl.glfw.CallbackBridge;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -134,7 +134,6 @@ public class ControlButton extends AppCompatButton implements CustomView {
         });
         alphaListener = invalidate -> Schedulers.androidUIThread().execute(() -> {
             setAlpha(menu.isHideAllViews() ? 0 : 1);
-            ((DrawerLayout) gameMenu.getLayout()).setDrawerLockMode(menu.isHideAllViews() ? 0 : 1);
         });
 
         post(() -> {
@@ -275,6 +274,7 @@ public class ControlButton extends AppCompatButton implements CustomView {
 
     private final Handler handler = new Handler();
     private final Runnable runnable = () -> handleLongPressEvent(!longPressEvent);
+
     private void deleteView() {
         if (menu != null) {
             menu.getViewManager().removeView(getData());
@@ -571,9 +571,18 @@ public class ControlButton extends AppCompatButton implements CustomView {
         if (!press && !keycodeOutputting) {
             return;
         }
+        if (event.outputKeycodesList().isEmpty()) {
+            return;
+        }
         for (int keycode : event.outputKeycodesList()) {
             keycodeOutputting = press;
             menu.getInput().sendKeyEvent(keycode, press);
+            if (!FCLBridge.BACKEND_IS_BOAT) {
+                int code = LwjglKeycodeMap.convertKeycode(keycode);
+                if (code >= 0) {
+                    CallbackBridge.setModifiers(code, press);
+                }
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 package com.tungsten.fcl.ui.version;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,6 +10,9 @@ import androidx.appcompat.widget.AppCompatImageView;
 
 import com.mio.util.AnimUtil;
 import com.tungsten.fcl.R;
+import com.tungsten.fclcore.mod.ModManager;
+import com.tungsten.fclcore.task.Schedulers;
+import com.tungsten.fclcore.task.Task;
 import com.tungsten.fcllibrary.component.FCLAdapter;
 import com.tungsten.fcllibrary.component.theme.ThemeEngine;
 import com.tungsten.fcllibrary.component.view.FCLImageButton;
@@ -45,6 +49,7 @@ public class VersionListAdapter extends FCLAdapter {
         return list.get(i);
     }
 
+    @SuppressLint("DefaultLocale")
     @Override
     public View getView(int i, View view, ViewGroup viewGroup) {
         final ViewHolder viewHolder;
@@ -71,8 +76,19 @@ public class VersionListAdapter extends FCLAdapter {
             viewHolder.tag.setText(versionListItem.getTag());
         }
         viewHolder.subtitle.setText(versionListItem.getLibraries());
-        viewHolder.radioButton.setOnClickListener(view1 -> versionListItem.getProfile().setSelectedVersion(versionListItem.getVersion()));
+        viewHolder.radioButton.setOnClickListener(v -> versionListItem.getProfile().setSelectedVersion(versionListItem.getVersion()));
         viewHolder.delete.setOnClickListener(view1 -> Versions.deleteVersion(getContext(), versionListItem.getProfile(), versionListItem.getVersion()));
+        viewHolder.subtitle.setTag(i);
+        view.setOnClickListener(v -> versionListItem.getProfile().setSelectedVersion(versionListItem.getVersion()));
+        Task.supplyAsync(() -> {
+            ModManager modManager = versionListItem.getProfile().getRepository().getModManager(versionListItem.getVersion());
+            return modManager.getMods().size();
+        }).whenComplete(Schedulers.androidUIThread(), (result, exception) -> {
+            int modCount = exception == null ? result : 0;
+            if (((int) viewHolder.subtitle.getTag()) == i) {
+                viewHolder.subtitle.setText(String.format("%s  Mods:%d", viewHolder.subtitle.getText(), modCount));
+            }
+        }).start();
         AnimUtil.playTranslationX(view, ThemeEngine.getInstance().getTheme().getAnimationSpeed() * 30L, -100f, 0f).start();
         return view;
     }

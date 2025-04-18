@@ -450,7 +450,7 @@
     <string name="jar_executor_crash_title">Execução de .jar falhou</string>
     <string name="jar_executor_crash_reason">O motivo da falha ainda não é suportado.</string>
 
-    <string name="launch">Jogar</string>
+    <string name="launch_pojav">Jogar</string>
     <string name="launch_error_java">Você está usando uma versão não suportada do Java, tem certeza que deseja continuar?</string>
     <string name="launch_error_java_auto">Seleção automática</string>
     <string name="launch_error_java_continue">Continuar</string>
@@ -526,7 +526,6 @@
     <string name="menu_settings_gamepad_reset_mapper">Mapeamento</string>
     <string name="menu_settings_gamepad_reset">Redefinir</string>
     <string name="menu_settings_gamepad_deadzone">Deadzone</string>
-    <string name="menu_settings_gamepad_aimzone">AimAssistZone</string>
     <string name="menu_settings_multiplayer">Menu de multijogador</string>
     <string name="menu_settings_multiplayer_button">Abrir</string>
     <string name="menu_settings_quick_input">Área de transferência</string>
@@ -740,7 +739,6 @@
     <string name="settings_fcl_controller">Controle</string>
     <string name="settings_fcl_controller_injector">Gestos do Bedrock</string>
     <string name="settings_fcl_renderer">Renderizador</string>
-    <string name="settings_fcl_renderer_ltw">LTW (OpenGL 4.6, suporta 1.17+)</string>
     <string name="settings_fcl_renderer_vgpu" >VGPU (OpenGL 2.1+, suporta 1.17-)</string>
     <string name="settings_fcl_renderer_freedreno" >Freedreno (OpenGL 4.6, suporta GPU Adreno 616-660)</string>
 
@@ -769,9 +767,13 @@
     <string name="settings_launcher_launcher_log_export_failed">Não foi possível exportar as logs</string>
     <string name="settings_launcher_launcher_log_export_success">Logs foram exportadas para %s</string>
     <string name="settings_launcher_theme">Tema</string>
+    <string name="settings_launcher_theme2">Theme2</string>
     <string name="settings_launcher_background_lt">Plano de fundo, modo claro</string>
     <string name="settings_launcher_background_dk">Plano de fundo, modo escuro</string>
+    <string name="settings_launcher_cursor">Cursor Picture</string>
+    <string name="settings_launcher_menu_icon">Menu View Icon</string>
     <string name="settings_launcher_ignore_notch">Ignorar entalhe</string>
+    <string name="settings_launcher_close_skin_view">Close Skin Model Viewing</string>
     <string name="settings_launcher_animation_speed">Velocidade de animação</string>
 
     <string name="settings_memory">Memória</string>

@@ -9,7 +9,7 @@
  * 
  * - Implements glfwSetCursorPos() to handle grab camera pos correctly.
  */
- 
+
 #include <assert.h>
 #include <dlfcn.h>
 #include <jni.h>
@@ -37,8 +37,9 @@ jint (*orig_ProcessImpl_forkAndExec)(JNIEnv *env, jobject process, jint mode, jb
 static void registerFunctions(JNIEnv *env);
 
 void hookExec();
-void installLinkerBugMitigation();
+extern void installLwjglDlopenHook();
 void installEMUIIteratorMititgation();
+
 JNIEXPORT jstring JNICALL Java_org_lwjgl_glfw_CallbackBridge_nativeClipboard(JNIEnv* env, jclass clazz, jint action, jbyteArray copySrc);
 
 jint JNI_OnLoad(JavaVM* vm, __attribute__((unused)) void* reserved) {
@@ -65,7 +66,7 @@ jint JNI_OnLoad(JavaVM* vm, __attribute__((unused)) void* reserved) {
         jobject mouseDownBufferJ = (*pojav_environ->runtimeJNIEnvPtr_JRE)->GetStaticObjectField(pojav_environ->runtimeJNIEnvPtr_JRE, pojav_environ->vmGlfwClass, field_mouseDownBuffer);
         pojav_environ->mouseDownBuffer = (*pojav_environ->runtimeJNIEnvPtr_JRE)->GetDirectBufferAddress(pojav_environ->runtimeJNIEnvPtr_JRE, mouseDownBufferJ);
         hookExec();
-        installLinkerBugMitigation();
+        installLwjglDlopenHook();
         installEMUIIteratorMititgation();
     }
 
@@ -76,7 +77,7 @@ jint JNI_OnLoad(JavaVM* vm, __attribute__((unused)) void* reserved) {
         registerFunctions(env);
     }
     pojav_environ->isGrabbing = JNI_FALSE;
-    
+
     return JNI_VERSION_1_4;
 }
 
@@ -225,12 +226,13 @@ void sendData(int type, int i1, int i2, int i3, int i4) {
     atomic_fetch_add_explicit(&pojav_environ->eventCounter, 1, memory_order_acquire);
 }
 
-jbyteArray convertStr(JNIEnv *env, char *str) {
-    jsize len = (jsize) strlen(str);
-    jbyteArray arr = (*env)->NewByteArray(env, len);
-    (*env)->SetByteArrayRegion(env, arr, 0, len, (jbyte *) str);
-    return arr;
+static jbyteArray stringToBytes(JNIEnv *env, const char* string) {
+    const jsize string_data_len = (jsize)(strlen(string) + 1);
+    jbyteArray result = (*env)->NewByteArray(env, (jsize)string_data_len);
+    (*env)->SetByteArrayRegion(env, result, 0, (jsize)string_data_len, (const jbyte*) string);
+    return result;
 }
+
 /**
  * Hooked version of java.lang.UNIXProcess.forkAndExec()
  * which is used to handle the "open" command.
@@ -241,10 +243,12 @@ hooked_ProcessImpl_forkAndExec(JNIEnv *env, jobject process, jint mode, jbyteArr
 
     // Here we only handle the "xdg-open" command
     if (strcmp(basename(pProg), "xdg-open") != 0) {
-        (*env)->ReleaseByteArrayElements(env, prog, (jbyte *) pProg, 0);
-        if (getenv("JSP")) {
-            jbyteArray new_hp = convertStr(env, getenv("JSP"));
-            return orig_ProcessImpl_forkAndExec(env, process, mode, new_hp, prog, argBlock, argc, envBlock, envc, dir, std_fds, redirectErrorStream);
+        (*env)->ReleaseByteArrayElements(env, prog, (jbyte *)pProg, 0);
+        if (strcmp(basename(pProg), "ffmpeg") == 0) {
+            const char* ffmpeg_path = getenv("FFMPEG_PATH");
+            if (ffmpeg_path != NULL) {
+                prog = stringToBytes(env, ffmpeg_path);
+            }
         }
         return orig_ProcessImpl_forkAndExec(env, process, mode, helperpath, prog, argBlock, argc, envBlock, envc, dir, std_fds, redirectErrorStream);
     }
@@ -268,47 +272,6 @@ void hookExec() {
     };
     (*pojav_environ->runtimeJNIEnvPtr_JRE)->RegisterNatives(pojav_environ->runtimeJNIEnvPtr_JRE, cls, methods, 1);
     printf("Registered forkAndExec\n");
-}
-
-/**
- * Basically a verbatim implementation of ndlopen(), found at
- * https://github.com/PojavLauncherTeam/lwjgl3/blob/3.3.1/modules/lwjgl/core/src/generated/c/linux/org_lwjgl_system_linux_DynamicLinkLoader.c#L11
- * The idea is that since, on Android 10 and earlier, the linker doesn't really do namespace nesting.
- * It is not a problem as most of the libraries are in the launcher path, but when you try to run
- * VulkanMod which loads shaderc outside of the default jni libs directory through this method,
- * it can't load it because the path is not in the allowed paths for the anonymous namesapce.
- * This method fixes the issue by being in libpojavexec, and thus being in the classloader namespace
- */
-jlong ndlopen_bugfix(__attribute__((unused)) JNIEnv *env,
-                     __attribute__((unused)) jclass class,
-                     jlong filename_ptr,
-                     jint jmode) {
-    const char* filename = (const char*) filename_ptr;
-    int mode = (int)jmode;
-    return (jlong) dlopen(filename, mode);
-}
-
-/**
- * Install the linker bug mitigation for Android 10 and lower. Fixes VulkanMod crashing on these
- * Android versions due to missing namespace nesting.
- */
-void installLinkerBugMitigation() {
-    if(android_get_device_api_level() >= 30) return;
-    __android_log_print(ANDROID_LOG_INFO, "Api29LinkerFix", "API < 30 detected, installing linker bug mitigation");
-    JNIEnv* env = pojav_environ->runtimeJNIEnvPtr_JRE;
-    jclass dynamicLinkLoader = (*env)->FindClass(env, "org/lwjgl/system/linux/DynamicLinkLoader");
-    if(dynamicLinkLoader == NULL) {
-        __android_log_print(ANDROID_LOG_ERROR, "Api29LinkerFix", "Failed to find the target class");
-        (*env)->ExceptionClear(env);
-        return;
-    }
-    JNINativeMethod ndlopenMethod[] = {
-            {"ndlopen", "(JI)J", &ndlopen_bugfix}
-    };
-    if((*env)->RegisterNatives(env, dynamicLinkLoader, ndlopenMethod, 1) != 0) {
-        __android_log_print(ANDROID_LOG_ERROR, "Api29LinkerFix", "Failed to register the bugfix method");
-        (*env)->ExceptionClear(env);
-    }
 }
 
 /**
@@ -376,7 +339,7 @@ JNIEXPORT jstring JNICALL Java_org_lwjgl_glfw_CallbackBridge_nativeClipboard(JNI
     (*pojav_environ->dalvikJavaVMPtr)->AttachCurrentThread(pojav_environ->dalvikJavaVMPtr, &dalvikEnv, NULL);
     assert(dalvikEnv != NULL);
     assert(pojav_environ->bridgeClazz != NULL);
-    
+
     FCL_INTERNAL_LOG("Clipboard: Converting string\n");
     char *copySrcC;
     jstring copyDst = NULL;
@@ -389,7 +352,7 @@ JNIEXPORT jstring JNICALL Java_org_lwjgl_glfw_CallbackBridge_nativeClipboard(JNI
     jstring pasteDst = convertStringJVM(dalvikEnv, env, (jstring) (*dalvikEnv)->CallStaticObjectMethod(dalvikEnv, pojav_environ->bridgeClazz, pojav_environ->method_accessAndroidClipboard, action, copyDst));
 
     if (copySrc) {
-        (*dalvikEnv)->DeleteLocalRef(dalvikEnv, copyDst);    
+        (*dalvikEnv)->DeleteLocalRef(dalvikEnv, copyDst);
         (*env)->ReleaseByteArrayElements(env, copySrc, (jbyte *)copySrcC, 0);
     }
     (*pojav_environ->dalvikJavaVMPtr)->DetachCurrentThread(pojav_environ->dalvikJavaVMPtr);
@@ -570,17 +533,38 @@ JNIEXPORT void JNICALL Java_org_lwjgl_glfw_GLFW_nglfwSetShowingWindow(__attribut
 }
 
 JNIEXPORT void JNICALL Java_org_lwjgl_glfw_CallbackBridge_nativeSetWindowAttrib(__attribute__((unused)) JNIEnv* env, __attribute__((unused)) jclass clazz, jint attrib, jint value) {
-    if (!pojav_environ->showingWindow || !pojav_environ->isUseStackQueueCall) {
+    // Check for stack queue no longer necessary here as the JVM crash's origin is resolved
+    if (!pojav_environ->showingWindow) {
         // If the window is not shown, there is nothing to do yet.
-        // For Minecraft < 1.13, calling to JNI functions here crashes the JVM for some reason, therefore it is skipped for now.
         return;
     }
 
-    (*pojav_environ->runtimeJNIEnvPtr_JRE)->CallStaticVoidMethod(
-        pojav_environ->runtimeJNIEnvPtr_JRE,
-        pojav_environ->vmGlfwClass, pojav_environ->method_glftSetWindowAttrib,
-        (jlong) pojav_environ->showingWindow, attrib, value
+    // We cannot use pojav_environ->runtimeJNIEnvPtr_JRE here because that environment is attached
+    // on the thread that loaded pojavexec (which is the thread that first references the GLFW class)
+    // But this method is only called from the Android UI thread
+
+    // Technically the better solution would be to have a permanently attached env pointer stored
+    // in environ for the Android UI thread but this is the only place that uses it
+    // (very rarely, only in lifecycle callbacks) so i dont care
+
+    JavaVM* jvm = pojav_environ->runtimeJavaVMPtr;
+    JNIEnv *jvm_env = NULL;
+    jint env_result = (*jvm)->GetEnv(jvm, (void**)&jvm_env, JNI_VERSION_1_4);
+    if(env_result == JNI_EDETACHED) {
+        env_result = (*jvm)->AttachCurrentThread(jvm, &jvm_env, NULL);
+    }
+    if(env_result != JNI_OK) {
+        printf("input_bridge nativeSetWindowAttrib() JNI call failed: %i\n", env_result);
+        return;
+    }
+
+    (*jvm_env)->CallStaticVoidMethod(
+            jvm_env, pojav_environ->vmGlfwClass,
+            pojav_environ->method_glftSetWindowAttrib,
+            (jlong) pojav_environ->showingWindow, attrib, value
     );
+
+    // Attaching every time is annoying, so stick the attachment to the Android GUI thread around
 }
 const static JNINativeMethod critical_fcns[] = {
         {"nativeSetUseInputStackQueue", "(Z)V", critical_set_stackqueue},

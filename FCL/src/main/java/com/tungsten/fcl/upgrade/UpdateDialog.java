@@ -1,7 +1,5 @@
 package com.tungsten.fcl.upgrade;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Point;
@@ -17,8 +15,10 @@ import androidx.core.content.FileProvider;
 
 import com.tungsten.fcl.R;
 import com.tungsten.fcl.ui.TaskDialog;
+import com.tungsten.fcl.util.AndroidUtils;
 import com.tungsten.fcl.util.TaskCancellationAction;
 import com.tungsten.fclauncher.bridge.FCLBridge;
+import com.tungsten.fclauncher.utils.Architecture;
 import com.tungsten.fclauncher.utils.FCLPath;
 import com.tungsten.fclcore.task.FileDownloadTask;
 import com.tungsten.fclcore.task.Schedulers;
@@ -117,7 +117,7 @@ public class UpdateDialog extends FCLDialog implements View.OnClickListener {
             dialog.setTitle(getContext().getString(R.string.update_launcher));
             Schedulers.androidUIThread().execute(() -> {
                 TaskExecutor executor = Task.composeAsync(() -> {
-                    FileDownloadTask task = new FileDownloadTask(NetworkUtils.toURL(version.getUrl()), new File(FCLPath.CACHE_DIR, "FoldCraftLauncher.apk"));
+                    FileDownloadTask task = new FileDownloadTask(NetworkUtils.toURL(getTargetArchUrl()), new File(FCLPath.CACHE_DIR, "FoldCraftLauncher.apk"));
                     task.setName("FoldCraftLauncher");
                     return task.whenComplete(Schedulers.androidUIThread(), exception -> {
                         if (exception == null) {
@@ -147,11 +147,30 @@ public class UpdateDialog extends FCLDialog implements View.OnClickListener {
             dismiss();
         }
         if (v == netdisk) {
-            FCLBridge.openLink(version.getNetdiskUrl());
-            ClipboardManager clipboard = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("FCL Clipboard", "1145");
-            clipboard.setPrimaryClip(clip);
+            AndroidUtils.openLink(getContext(), version.getNetdiskUrl());
             dismiss();
         }
+    }
+
+    @NonNull
+    private String getTargetArchUrl() {
+        String url = version.getUrl();
+        String arch = "all";
+        switch (Architecture.getDeviceArchitecture()) {
+            case Architecture.ARCH_ARM:
+                arch = "armeabi-v7a";
+                break;
+            case Architecture.ARCH_ARM64:
+                arch = "arm64-v8a";
+                break;
+            case Architecture.ARCH_X86:
+                arch = "x86";
+                break;
+            case Architecture.ARCH_X86_64:
+                arch = "x86_64";
+                break;
+        }
+        url = url.replace("-all", "-" + arch);
+        return url;
     }
 }

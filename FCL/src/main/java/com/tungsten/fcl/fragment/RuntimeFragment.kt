@@ -12,12 +12,8 @@ import com.tungsten.fcl.databinding.FragmentRuntimeBinding
 import com.tungsten.fcl.util.RuntimeUtils
 import com.tungsten.fclauncher.utils.FCLPath
 import com.tungsten.fclcore.task.Schedulers
-import com.tungsten.fclcore.util.io.FileUtils
 import com.tungsten.fcllibrary.component.FCLFragment
-import com.tungsten.fcllibrary.util.LocaleUtils
-import java.io.File
 import java.io.IOException
-import java.util.Locale
 
 class RuntimeFragment : FCLFragment(), View.OnClickListener {
     private lateinit var bind: FragmentRuntimeBinding
@@ -50,34 +46,15 @@ class RuntimeFragment : FCLFragment(), View.OnClickListener {
     }
 
     private fun initState() {
-        try {
-            lwjgl = RuntimeUtils.isLatest(
-                FCLPath.LWJGL_DIR,
-                "/assets/app_runtime/lwjgl"
-            ) && RuntimeUtils.isLatest(
-                FCLPath.LWJGL_DIR + "-boat",
-                "/assets/app_runtime/lwjgl-boat"
-            )
-            cacio = RuntimeUtils.isLatest(
-                FCLPath.CACIOCAVALLO_8_DIR,
-                "/assets/app_runtime/caciocavallo"
-            )
-            cacio11 = RuntimeUtils.isLatest(
-                FCLPath.CACIOCAVALLO_11_DIR,
-                "/assets/app_runtime/caciocavallo11"
-            )
-            cacio17 = RuntimeUtils.isLatest(
-                FCLPath.CACIOCAVALLO_17_DIR,
-                "/assets/app_runtime/caciocavallo17"
-            )
-            java8 = RuntimeUtils.isLatest(FCLPath.JAVA_8_PATH, "/assets/app_runtime/java/jre8")
-            java11 = RuntimeUtils.isLatest(FCLPath.JAVA_11_PATH, "/assets/app_runtime/java/jre11")
-            java17 = RuntimeUtils.isLatest(FCLPath.JAVA_17_PATH, "/assets/app_runtime/java/jre17")
-            java21 = RuntimeUtils.isLatest(FCLPath.JAVA_21_PATH, "/assets/app_runtime/java/jre21")
-            jna = RuntimeUtils.isLatest(FCLPath.JNA_PATH, "/assets/app_runtime/jna")
-        } catch (e: IOException) {
-            e.printStackTrace()
-        }
+        lwjgl = (activity as SplashActivity).lwjgl
+        cacio = (activity as SplashActivity).cacio
+        cacio11 = (activity as SplashActivity).cacio11
+        cacio17 = (activity as SplashActivity).cacio17
+        java8 = (activity as SplashActivity).java8
+        java11 = (activity as SplashActivity).java11
+        java17 = (activity as SplashActivity).java17
+        java21 = (activity as SplashActivity).java21
+        jna = (activity as SplashActivity).jna
     }
 
     private fun refreshDrawables() {
@@ -241,21 +218,6 @@ class RuntimeFragment : FCLFragment(), View.OnClickListener {
                             FCLPath.JAVA_11_PATH,
                             "app_runtime/java/jre11"
                         )
-                        if (LocaleUtils.getSystemLocale().displayName != Locale.CHINA.displayName) {
-                            FileUtils.writeText(
-                                File(FCLPath.JAVA_11_PATH + "/resolv.conf"), """
-     nameserver 1.1.1.1
-     nameserver 1.0.0.1
-     """.trimIndent()
-                            )
-                        } else {
-                            FileUtils.writeText(
-                                File(FCLPath.JAVA_11_PATH + "/resolv.conf"), """
-     nameserver 8.8.8.8
-     nameserver 8.8.4.4
-     """.trimIndent()
-                            )
-                        }
                         java11 = true
                     } catch (e: IOException) {
                         e.printStackTrace()
@@ -278,21 +240,6 @@ class RuntimeFragment : FCLFragment(), View.OnClickListener {
                             FCLPath.JAVA_17_PATH,
                             "app_runtime/java/jre17"
                         )
-                        if (LocaleUtils.getSystemLocale().displayName != Locale.CHINA.displayName) {
-                            FileUtils.writeText(
-                                File(FCLPath.JAVA_17_PATH + "/resolv.conf"), """
-     nameserver 1.1.1.1
-     nameserver 1.0.0.1
-     """.trimIndent()
-                            )
-                        } else {
-                            FileUtils.writeText(
-                                File(FCLPath.JAVA_17_PATH + "/resolv.conf"), """
-     nameserver 8.8.8.8
-     nameserver 8.8.4.4
-     """.trimIndent()
-                            )
-                        }
                         java17 = true
                     } catch (e: IOException) {
                         e.printStackTrace()
@@ -315,21 +262,6 @@ class RuntimeFragment : FCLFragment(), View.OnClickListener {
                             FCLPath.JAVA_21_PATH,
                             "app_runtime/java/jre21"
                         )
-                        if (LocaleUtils.getSystemLocale().displayName != Locale.CHINA.displayName) {
-                            FileUtils.writeText(
-                                File(FCLPath.JAVA_21_PATH + "/resolv.conf"), """
-     nameserver 1.1.1.1
-     nameserver 1.0.0.1
-     """.trimIndent()
-                            )
-                        } else {
-                            FileUtils.writeText(
-                                File(FCLPath.JAVA_21_PATH + "/resolv.conf"), """
-     nameserver 8.8.8.8
-     nameserver 8.8.4.4
-     """.trimIndent()
-                            )
-                        }
                         java21 = true
                     } catch (e: IOException) {
                         e.printStackTrace()

@@ -3,6 +3,7 @@ package com.tungsten.fcl.ui.download;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.view.View;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -11,9 +12,13 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.tungsten.fcl.R;
 import com.tungsten.fcl.setting.Profile;
+import com.tungsten.fcl.setting.Profiles;
 import com.tungsten.fcl.ui.PageManager;
 import com.tungsten.fcl.util.AndroidUtils;
 import com.tungsten.fcl.util.ModTranslations;
+import com.tungsten.fclcore.download.LibraryAnalyzer;
+import com.tungsten.fclcore.mod.LocalModFile;
+import com.tungsten.fclcore.mod.ModLoaderType;
 import com.tungsten.fclcore.mod.RemoteMod;
 import com.tungsten.fclcore.mod.RemoteModRepository;
 import com.tungsten.fclcore.task.Schedulers;
@@ -23,9 +28,9 @@ import com.tungsten.fclcore.util.StringUtils;
 import com.tungsten.fclcore.util.versioning.VersionNumber;
 import com.tungsten.fcllibrary.component.theme.ThemeEngine;
 import com.tungsten.fcllibrary.component.ui.FCLTempPage;
+import com.tungsten.fcllibrary.component.view.FCLEditText;
 import com.tungsten.fcllibrary.component.view.FCLImageButton;
 import com.tungsten.fcllibrary.component.view.FCLImageView;
-import com.tungsten.fcllibrary.component.view.FCLLinearLayout;
 import com.tungsten.fcllibrary.component.view.FCLProgressBar;
 import com.tungsten.fcllibrary.component.view.FCLTextView;
 import com.tungsten.fcllibrary.component.view.FCLUILayout;
@@ -38,6 +43,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -52,7 +59,7 @@ public class RemoteModInfoPage extends FCLTempPage implements View.OnClickListen
 
     private SimpleMultimap<String, RemoteMod.Version, List<RemoteMod.Version>> versions;
 
-    private FCLLinearLayout layout;
+    private LinearLayout layout;
     private FCLProgressBar progressBar;
     private FCLImageButton retry;
     private ListView versionListView;
@@ -66,6 +73,9 @@ public class RemoteModInfoPage extends FCLTempPage implements View.OnClickListen
     private FCLImageView screenshotRetry;
     private FCLTextView screenshotNoResult;
     private RecyclerView screenshotView;
+    private FCLEditText search;
+
+    private String recommendedVersion;
 
     public RemoteModInfoPage(Context context, int id, FCLUILayout parent, int resId, DownloadPage page, RemoteMod addon, Profile.ProfileVersion version, @Nullable RemoteModVersionPage.DownloadCallback callback) {
         super(context, id, parent, resId);
@@ -96,12 +106,17 @@ public class RemoteModInfoPage extends FCLTempPage implements View.OnClickListen
         screenshotLoading = findViewById(R.id.screenshot_loading);
         screenshotRetry = findViewById(R.id.screenshot_retry);
         screenshotNoResult = findViewById(R.id.screenshot_no_result);
+        search = findViewById(R.id.search);
 
         retry.setOnClickListener(this);
         mcmod.setOnClickListener(this);
         website.setOnClickListener(this);
 
         ThemeEngine.getInstance().registerEvent(versionListView, () -> versionListView.setBackgroundTintList(new ColorStateList(new int[][]{{}}, new int[]{ThemeEngine.getInstance().getTheme().getLtColor()})));
+
+        search.stringProperty().addListener(observable -> {
+            loadGameVersions();
+        });
     }
 
     @Override
@@ -125,9 +140,15 @@ public class RemoteModInfoPage extends FCLTempPage implements View.OnClickListen
     }
 
     private void loadGameVersions() {
-        ModGameVersionAdapter adapter = new ModGameVersionAdapter(getContext(), versions.keys().stream()
+        List<String> list = versions.keys().stream()
                 .sorted(Collections.reverseOrder(VersionNumber::compare))
-                .collect(Collectors.toList()), v -> {
+                .filter(it -> it.contains(Optional.ofNullable(search.getStringValue()).orElse("")))
+                .collect(Collectors.toList());
+        if (list.contains(recommendedVersion)) {
+            list.remove(recommendedVersion);
+            list.add(0, recommendedVersion);
+        }
+        ModGameVersionAdapter adapter = new ModGameVersionAdapter(getContext(), list, v -> {
             RemoteModVersionPage page = new RemoteModVersionPage(getContext(), PageManager.PAGE_ID_TEMP, getParent(), R.layout.page_download_addon_version, new ArrayList<>(versions.get(v)), version, callback, RemoteModInfoPage.this.page);
             DownloadPageManager.getInstance().showTempPage(page);
         });
@@ -144,6 +165,7 @@ public class RemoteModInfoPage extends FCLTempPage implements View.OnClickListen
             if (exception == null) {
                 this.versions = result;
                 loadGameVersions();
+                checkInstalled();
             } else {
                 setFailed();
             }
@@ -170,6 +192,33 @@ public class RemoteModInfoPage extends FCLTempPage implements View.OnClickListen
         })).start();
     }
 
+    private void checkInstalled() {
+        Task.supplyAsync(() -> {
+            String remoteName = addon.getTitle().replace(" ", "").toLowerCase();
+            List<LocalModFile> modFiles = Profiles.getSelectedProfile().getRepository().getModManager(Profiles.getSelectedVersion()).getMods().parallelStream().filter(localModFile -> {
+                String localName = localModFile.getName().replace(" ", "").toLowerCase();
+                return remoteName.contains(localName);
+            }).collect(Collectors.toList());
+            for (LocalModFile localModFile : modFiles) {
+                try {
+                    Optional<RemoteMod.Version> remoteVersion = repository.getRemoteVersionByLocalFile(localModFile, localModFile.getFile());
+                    if (remoteVersion.isPresent()) {
+                        String modId = remoteVersion.get().getModid();
+                        if (addon.getModID().equals(modId)) {
+                            return remoteVersion.get();
+                        }
+                    }
+                } catch (Throwable ignore) {
+                }
+            }
+            return null;
+        }).whenComplete(Schedulers.androidUIThread(), (result, exception) -> {
+            if (exception == null && result != null) {
+                name.setText(String.format("[%s] %s", getContext().getString(R.string.installed), name.getText()));
+            }
+        }).start();
+    }
+
     private SimpleMultimap<String, RemoteMod.Version, List<RemoteMod.Version>> sortVersions(Stream<RemoteMod.Version> versions) {
         SimpleMultimap<String, RemoteMod.Version, List<RemoteMod.Version>> classifiedVersions
                 = new SimpleMultimap<>(HashMap::new, ArrayList::new);
@@ -182,6 +231,24 @@ public class RemoteModInfoPage extends FCLTempPage implements View.OnClickListen
         for (String gameVersion : classifiedVersions.keys()) {
             List<RemoteMod.Version> versionList = classifiedVersions.get(gameVersion);
             versionList.sort(Comparator.comparing(RemoteMod.Version::getDatePublished).reversed());
+        }
+        Profile profile = Profiles.getSelectedProfile();
+        if (profile.getSelectedVersion() != null) {
+            LibraryAnalyzer analyzer = LibraryAnalyzer.analyze(profile.getRepository().getResolvedPreservingPatchesVersion(profile.getSelectedVersion()), profile.getSelectedVersion());
+            Set<ModLoaderType> modLoaders = analyzer.getModLoaders();
+            String mcv = analyzer.getVersion(LibraryAnalyzer.LibraryType.MINECRAFT).orElse("");
+
+            if (classifiedVersions.keys().contains(mcv)) {
+                classifiedVersions.get(mcv).stream().filter(v -> {
+                    for (ModLoaderType loader : v.getLoaders()) {
+                        if (modLoaders.contains(loader)) {
+                            recommendedVersion = getContext().getString(R.string.recommend_version) + ": " + mcv + " " + loader.name();
+                            return true;
+                        }
+                    }
+                    return false;
+                }).forEach(v -> classifiedVersions.put(recommendedVersion, v));
+            }
         }
         return classifiedVersions;
     }

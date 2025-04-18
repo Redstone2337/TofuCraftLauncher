@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <stdbool.h>
-#include "pojav/environ/environ.h"
+#include <environ/environ.h>
 #include "gl_bridge.h"
 #include "egl_loader.h"
 
@@ -20,7 +20,7 @@ static __thread gl_render_window_t* currentBundle;
 static EGLDisplay g_EglDisplay;
 
 bool gl_init() {
-    dlsym_EGL();
+    if(!dlsym_EGL()) return false;
     g_EglDisplay = eglGetDisplay_p(EGL_DEFAULT_DISPLAY);
     if (g_EglDisplay == EGL_NO_DISPLAY) {
         __android_log_print(ANDROID_LOG_ERROR, g_LogTag, "%s",
@@ -37,6 +37,22 @@ bool gl_init() {
 
 gl_render_window_t* gl_get_current() {
     return currentBundle;
+}
+
+static void gl4esi_get_display_dimensions(int* width, int* height) {
+    if(currentBundle == NULL) goto zero;
+    EGLSurface surface = currentBundle->surface;
+    // Fetch dimensions from the EGL surface - the most reliable way
+    EGLBoolean result_width = eglQuerySurface_p(g_EglDisplay, surface, EGL_WIDTH, width);
+    EGLBoolean result_height = eglQuerySurface_p(g_EglDisplay, surface, EGL_HEIGHT, height);
+    if(!result_width || !result_height) goto zero;
+    return;
+
+    zero:
+    // No idea what to do, but feeding gl4es incorrect or non-initialized dimensions may be
+    // a bad idea. Set to zero in case of errors.
+    *width = 0;
+    *height = 0;
 }
 
 gl_render_window_t* gl_init_context(gl_render_window_t *share) {
@@ -64,13 +80,13 @@ gl_render_window_t* gl_init_context(gl_render_window_t *share) {
 
     {
         EGLBoolean bindResult;
-//        if (!strcmp(getenv("POJAV_RENDERER"), "opengles3_ltw")) {
-//            printf("EGLBridge: Binding to desktop OpenGL\n");
-//            bindResult = eglBindAPI_p(EGL_OPENGL_API);
-//        } else {
-//        }
-        printf("EGLBridge: Binding to OpenGL ES\n");
-        bindResult = eglBindAPI_p(EGL_OPENGL_ES_API);
+        if (strncmp(getenv("POJAV_RENDERER"), "opengles3_desktopgl", 19) == 0) {
+            printf("EGLBridge: Binding to desktop OpenGL\n");
+            bindResult = eglBindAPI_p(EGL_OPENGL_API);
+        } else {
+            printf("EGLBridge: Binding to OpenGL ES\n");
+            bindResult = eglBindAPI_p(EGL_OPENGL_ES_API);
+        }
         if (!bindResult) printf("EGLBridge: bind failed: %p\n", eglGetError_p());
     }
 
@@ -154,7 +170,7 @@ void gl_swap_buffers() {
             gl_swap_surface(currentBundle);
             eglMakeCurrent_p(g_EglDisplay, currentBundle->surface, currentBundle->surface, currentBundle->context);
             __android_log_print(ANDROID_LOG_INFO, g_LogTag, "The window has died, awaiting window change");
-    }
+        }
 
 }
 
@@ -170,4 +186,19 @@ void gl_swap_interval(int swapInterval) {
     if(pojav_environ->force_vsync) swapInterval = 1;
 
     eglSwapInterval_p(g_EglDisplay, swapInterval);
+}
+
+JNIEXPORT void JNICALL
+Java_org_lwjgl_opengl_RendererInit_nativeInitGl4esInternals(JNIEnv *env, jclass clazz,
+                                                                 jobject function_provider) {
+    __android_log_print(ANDROID_LOG_INFO, g_LogTag, "GL4ES internals initializing...");
+    jclass funcProviderClass = (*env)->GetObjectClass(env, function_provider);
+    jmethodID method_getFunctionAddress = (*env)->GetMethodID(env, funcProviderClass, "getFunctionAddress", "(Ljava/lang/CharSequence;)J");
+#define GETSYM(N) ((*env)->CallLongMethod(env, function_provider, method_getFunctionAddress, (*env)->NewStringUTF(env, N)));
+    void (*set_getmainfbsize)(void (*new_getMainFBSize)(int* width, int* height)) = (void*)GETSYM("set_getmainfbsize");
+    if(set_getmainfbsize != NULL) {
+        __android_log_print(ANDROID_LOG_INFO, g_LogTag, "GL4ES internals initialized dimension callback");
+        set_getmainfbsize(gl4esi_get_display_dimensions);
+    }
+#undef GETSYM
 }
