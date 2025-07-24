@@ -1,15 +1,18 @@
 package com.mio.minecraft
 
 import android.content.Context
+import com.mio.manager.RendererManager
 import com.mio.util.AndroidUtil
 import com.tungsten.fcl.R
+import com.tungsten.fclauncher.FCLConfig
 import com.tungsten.fclauncher.bridge.FCLBridge
 import com.tungsten.fclauncher.plugins.FFmpegPlugin
 import com.tungsten.fclauncher.utils.Architecture
 import com.tungsten.fclcore.mod.LocalModFile
+import com.tungsten.fclcore.util.versioning.VersionNumber
 import kotlin.jvm.Throws
 
-class ModChecker(val context: Context) {
+class ModChecker(val context: Context, val version: String) {
     @Throws(ModCheckException::class)
     fun check(bridge: FCLBridge, mod: LocalModFile) {
         val exception = runCatching {
@@ -17,6 +20,7 @@ class ModChecker(val context: Context) {
                 "touchcontroller" -> {
                     bridge.setHasTouchController(true);
                 }
+
                 "physicsmod" -> {
                     val arch = AndroidUtil.getElfArchFromZip(
                         mod.file.toFile(),
@@ -93,6 +97,35 @@ class ModChecker(val context: Context) {
                             mod.file.toFile().name
                         )
                     )
+                }
+
+                "axiom" -> {
+                    val arch = AndroidUtil.getElfArchFromZip(
+                        mod.file.toFile(),
+                        "io/imgui/java/native-bin/libimgui-javaarm64.so"
+                    )
+                    if (arch.isBlank())
+                        throw ModCheckException(
+                            context.getString(
+                                R.string.mod_check_axiom,
+                                mod.file.toFile().name
+                            )
+                        )
+                }
+
+                "sodium", "embeddium" -> {
+                    if (version.isNotEmpty() && bridge.renderer == RendererManager.RENDERER_GL4ES.name && VersionNumber.compare(
+                            version,
+                            "1.17"
+                        ) >= 0
+                    ) {
+                        throw ModCheckException(
+                            context.getString(
+                                R.string.mod_check_sodium,
+                                mod.file.toFile().name
+                            )
+                        )
+                    }
                 }
             }
         }.exceptionOrNull()

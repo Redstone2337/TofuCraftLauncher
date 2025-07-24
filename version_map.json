@@ -1,20 +1,20 @@
 [
   {
     "type": "release",
-    "versionCode": 1220,
-    "versionName": "1.2.2.0",
-    "date": "2025.04.14",
+    "versionCode": 1242,
+    "versionName": "1.2.4.2",
+    "date": "2025.07.24",
     "description": [
       {
         "lang": "en",
-        "text": "See Github for details."
+        "text": "(Translated from Chinese by AI)\n1. Fix the issue where clicking launch without downloaded games causes an immediate crash \n2. New feature: Added a refresh button in the renderer selection dialog  \n3. Fix GLFW missing glfwRestoreWindow in Pojav backend causing certain mods to malfunction on some devices  \n4. Resolve text-background color indistinguishability in built-in file picker caused by mobile themes  \n5. Add Traditional Chinese (Hong Kong) language support"
       },
       {
         "lang": "zh_CN",
-        "text": "（若启动器内下载缓慢请使用网盘下载,64位的请下载arm64，不知道该下哪个的请下载all）\n1.修复颜色选择器相关Bug\n2.调整部分UI增加动画效果\n3.添加获取Java的渠道\n4.新增功能：模组下载界面可根据模组加载器过滤模组\n5.增加对无边框全屏模组的警告\n6.调整模组管理界面内模组图标未获取时的显示方式"
+        "text": "（若启动器内下载缓慢请使用网盘下载,64位的请下载arm64，不知道该下哪个的请下载all）\n1.修复未下载游戏时点击启动直接崩溃的问题\n2.新增功能：在选择渲染器的对话框内添加刷新按键\n3.修复Pojav后端的GLFW缺少glfwRestoreWindow导致部分设备部分模组无法运行的问题\n4.修复手机主题可能导致的内置文件选择器文字颜色与背景色无法区分的问题\n5.增加繁体中文（香港）"
       }
     ],
-    "netdiskUrl": "https://pan.quark.cn/s/8a78da4b7371",
-    "url": "https://github.com/FCL-Team/FoldCraftLauncher/releases/download/1.2.2.0/FCL-release-1.2.2.0-all.apk"
+    "netdiskUrl": "https://pan.quark.cn/s/968458583f99",
+    "url": "https://github.com/FCL-Team/FoldCraftLauncher/releases/download/1.2.4.2/FCL-release-1.2.4.2-all.apk"
   }
 ]

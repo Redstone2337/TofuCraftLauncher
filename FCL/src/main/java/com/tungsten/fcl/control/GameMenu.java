@@ -1,11 +1,15 @@
 package com.tungsten.fcl.control;
 
+import static android.content.Context.MODE_PRIVATE;
+
 import android.annotation.SuppressLint;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -15,7 +19,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.google.gson.GsonBuilder;
@@ -361,7 +364,10 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
         FCLSwitch disableBEGestureSwitch = findViewById(R.id.switch_be_gesture);
         FCLSwitch disableLeftTouchSwitch = findViewById(R.id.switch_left_touch);
         FCLSwitch gyroSwitch = findViewById(R.id.switch_gyro);
+        FCLSwitch physicalMouseSwitch = findViewById(R.id.switch_physical_mouse_mode);
         FCLSwitch showLogSwitch = findViewById(R.id.switch_show_log);
+        FCLSwitch performanceModeSwitch = findViewById(R.id.switch_performance);
+        FCLSwitch autoShowLogSwitch = findViewById(R.id.switch_auto_show_log);
 
         FCLSpinner<GestureMode> gestureModeSpinner = findViewById(R.id.gesture_mode_spinner);
         FCLSpinner<MouseMoveMode> mouseMoveModeSpinner = findViewById(R.id.mouse_mode_spinner);
@@ -388,7 +394,13 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
         FXUtils.bindBoolean(disableBEGestureSwitch, menuSetting.getDisableBEGestureProperty());
         FXUtils.bindBoolean(disableLeftTouchSwitch, menuSetting.getDisableLeftTouchProperty());
         FXUtils.bindBoolean(gyroSwitch, menuSetting.getEnableGyroscopeProperty());
+        FXUtils.bindBoolean(physicalMouseSwitch, menuSetting.getPhysicalMouseMode());
         FXUtils.bindBoolean(showLogSwitch, menuSetting.getShowLogProperty());
+        FXUtils.bindBoolean(autoShowLogSwitch, menuSetting.getAutoShowLogProperty());
+
+        performanceModeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            activity.getWindow().setSustainedPerformanceMode(isChecked);
+        });
 
         menuSetting.getHideMenuViewViewProperty().addListener(i -> {
             menuView.setVisibility(menuSetting.isHideMenuView() ? View.INVISIBLE : View.VISIBLE);
@@ -398,6 +410,7 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
         });
 
         showFps.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            menuSetting.getShowFpsProperty().setValue(isChecked);
             if (isSimulated()) {
                 return;
             }
@@ -415,10 +428,16 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
                 fpsText.setText("");
             }
         });
+        showFps.setChecked(menuSetting.isShowFps());
 
-        logWindow.visibilityProperty().setValue(menuSetting.isShowLog());
+        logWindow.visibilityProperty().setValue(menuSetting.isShowLog() || (!isSimulated() && menuSetting.isAutoShowLog()));
         menuSetting.getShowLogProperty().addListener(observable -> {
             logWindow.visibilityProperty().setValue(menuSetting.isShowLog());
+        });
+        menuSetting.getAutoShowLogProperty().addListener(observable -> {
+            if (baseLayout.getBackground() != null) {
+                logWindow.visibilityProperty().setValue(menuSetting.isAutoShowLog());
+            }
         });
 
         ArrayList<GestureMode> gestureModeDataList = new ArrayList<>();
@@ -592,8 +611,19 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
         }
 
         if (getBridge() != null && getBridge().hasTouchController()) {
-            touchController = new TouchController(getActivity(), AndroidUtils.getScreenWidth(getActivity()), AndroidUtils.getScreenHeight(getActivity()));
+            SharedPreferences sharedPreferences = getActivity().getSharedPreferences("launcher", MODE_PRIVATE);
+            touchController = new TouchController(getActivity(), AndroidUtils.getScreenWidth(getActivity()), AndroidUtils.getScreenHeight(getActivity()), (int)sharedPreferences.getInt("vibrationDuration", 100));
         }
+
+        touchPad.setOnHoverListener((view, motionEvent) -> {
+            if (menuSetting.isPhysicalMouseMode()) {
+                if (getCursorMode() == FCLBridge.CursorEnabled && motionEvent.getAction() == MotionEvent.ACTION_HOVER_MOVE) {
+                    getInput().setPointer((int) motionEvent.getRawX(), (int) motionEvent.getRawY());
+                    return true;
+                }
+            }
+            return false;
+        });
     }
 
     @Override
@@ -646,6 +676,9 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
     public void onGraphicOutput() {
         baseLayout.setBackground(null);
         baseLayout.removeView(launchProgress);
+        if (!menuSetting.isShowLog() && menuSetting.isAutoShowLog()) {
+            logWindow.visibilityProperty().setValue(false);
+        }
     }
 
     @Override
@@ -656,10 +689,18 @@ public class GameMenu implements MenuCallback, View.OnClickListener {
                 getCursor().setVisibility(View.VISIBLE);
                 gameItemBar.setVisibility(View.GONE);
                 getInput().setPointer(AndroidUtils.getScreenWidth(FCLApplication.getCurrentActivity()) / 2, AndroidUtils.getScreenHeight(FCLApplication.getCurrentActivity()) / 2, "Gyro");
+                if (menuSetting.isPhysicalMouseMode()) {
+                    getInput().getFocusableView().releasePointerCapture();
+                    getInput().getFocusableView().clearFocus();
+                }
             } else {
                 getCursor().setVisibility(View.GONE);
                 if (getBridge() != null && !getBridge().hasTouchController()) {
                     gameItemBar.setVisibility(View.VISIBLE);
+                }
+                if (menuSetting.isPhysicalMouseMode()) {
+                    getInput().getFocusableView().requestFocus();
+                    getInput().getFocusableView().requestPointerCapture();
                 }
             }
         });

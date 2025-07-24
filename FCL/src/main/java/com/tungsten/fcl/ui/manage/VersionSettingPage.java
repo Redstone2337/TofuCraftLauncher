@@ -7,14 +7,21 @@ import android.view.View;
 
 import androidx.appcompat.app.AlertDialog;
 
+import com.mio.data.Renderer;
+import com.mio.manager.RendererManager;
+import com.mio.ui.dialog.DriverSelectDialog;
 import com.mio.ui.dialog.JavaManageDialog;
-import com.mio.util.RendererUtil;
+import com.mio.ui.dialog.RendererSelectDialog;
 import com.tungsten.fcl.R;
+import com.tungsten.fcl.activity.MainActivity;
 import com.tungsten.fcl.control.SelectControllerDialog;
 import com.tungsten.fcl.game.FCLGameRepository;
+import com.tungsten.fcl.setting.Controllers;
 import com.tungsten.fcl.setting.Profile;
+import com.tungsten.fcl.setting.Profiles;
 import com.tungsten.fcl.setting.VersionSetting;
-import com.tungsten.fcl.ui.setting.SettingPageManager;
+import com.tungsten.fcl.ui.UIManager;
+import com.tungsten.fcl.ui.controller.ControllerPageManager;
 import com.tungsten.fcl.util.AndroidUtils;
 import com.tungsten.fcl.util.FXUtils;
 import com.tungsten.fcl.util.RequestCodes;
@@ -52,7 +59,6 @@ import com.tungsten.fcllibrary.component.view.FCLProgressBar;
 import com.tungsten.fcllibrary.component.view.FCLSwitch;
 import com.tungsten.fcllibrary.component.view.FCLTextView;
 import com.tungsten.fcllibrary.component.view.FCLUILayout;
-import com.tungsten.fcllibrary.util.ConvertUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -99,6 +105,7 @@ public class VersionSettingPage extends FCLCommonPage implements ManageUI.Versio
     private FCLImageButton driverInstallButton;
 
     private FCLTextView javaText;
+    private FCLTextView controllerText;
     private FCLTextView rendererText;
     private FCLTextView driverText;
 
@@ -167,6 +174,7 @@ public class VersionSettingPage extends FCLCommonPage implements ManageUI.Versio
         driverInstallButton.setOnClickListener(this);
 
         javaText = findViewById(R.id.java);
+        controllerText = findViewById(R.id.controller);
         rendererText = findViewById(R.id.renderer);
         driverText = findViewById(R.id.driver);
 
@@ -284,7 +292,7 @@ public class VersionSettingPage extends FCLCommonPage implements ManageUI.Versio
             FXUtils.unbindBoolean(noJVMCheckSwitch, lastVersionSetting.getNotCheckJVMProperty());
             FXUtils.unbindBoolean(beGestureSwitch, lastVersionSetting.getBeGestureProperty());
             FXUtils.unbindBoolean(vulkanDriverSystemSwitch, lastVersionSetting.getVkDriverSystemProperty());
-            scaleFactorSeekbar.percentProgressProperty().unbindBidirectional(lastVersionSetting.getScaleFactorProperty());
+            scaleFactorSeekbar.progressProperty().unbindBidirectional(lastVersionSetting.getScaleFactorProperty());
             maxMemory.unbindBidirectional(lastVersionSetting.getMaxMemoryProperty());
 
             lastVersionSetting.getUsesGlobalProperty().removeListener(specificSettingsListener);
@@ -305,16 +313,15 @@ public class VersionSettingPage extends FCLCommonPage implements ManageUI.Versio
         FXUtils.bindBoolean(noJVMCheckSwitch, versionSetting.getNotCheckJVMProperty());
         FXUtils.bindBoolean(beGestureSwitch, versionSetting.getBeGestureProperty());
         FXUtils.bindBoolean(vulkanDriverSystemSwitch, versionSetting.getVkDriverSystemProperty());
-        scaleFactorSeekbar.percentProgressProperty().bindBidirectional(versionSetting.getScaleFactorProperty());
+        scaleFactorSeekbar.progressProperty().bindBidirectional(versionSetting.getScaleFactorProperty());
         maxMemory.bindBidirectional(versionSetting.getMaxMemoryProperty());
 
         javaText.setText(versionSetting.getJava().equals("Auto") ? getContext().getString(R.string.settings_game_java_version_auto) : versionSetting.getJava());
-        FCLConfig.Renderer renderer = versionSetting.getRenderer();
-        if (renderer == FCLConfig.Renderer.RENDERER_CUSTOM) {
-            rendererText.setText(versionSetting.getCustomRenderer());
-        } else {
-            rendererText.setText(renderer.toString());
-        }
+        Controllers.addCallback(() -> {
+            controllerText.setText(Controllers.findControllerById(versionSetting.getController()).getName());
+        });
+        Renderer renderer = RendererManager.getRenderer(versionSetting.getRenderer());
+        rendererText.setText(renderer.getDes());
         if (!versionSetting.getDriver().equals("Turnip")) {
             boolean isSelected = false;
             for (DriverPlugin.Driver driver : DriverPlugin.getDriverList()) {
@@ -406,11 +413,16 @@ public class VersionSettingPage extends FCLCommonPage implements ManageUI.Versio
             onDeleteIcon();
         }
         if (view == controllerButton) {
-            SelectControllerDialog dialog = new SelectControllerDialog(getContext(), lastVersionSetting.getController(), controller -> lastVersionSetting.setController(controller.getId()));
+            SelectControllerDialog dialog = new SelectControllerDialog(getContext(), lastVersionSetting.getController(), controller -> {
+                lastVersionSetting.setController(controller.getId());
+                controllerText.setText(controller.getName());
+            });
             dialog.show();
         }
         if (view == controllerInstallButton) {
-            SettingPageManager.getInstance().switchPage(SettingPageManager.PAGE_ID_SETTING_CONTROLLER_REPO);
+            UIManager uiManager = MainActivity.getInstance().getUiManager();
+            MainActivity.getInstance().binding.controller.setSelected(true);
+            uiManager.getControllerUI().checkPageManager(() -> uiManager.getControllerUI().getPageManager().switchPage(ControllerPageManager.PAGE_ID_CONTROLLER_REPO));
         }
         if (view == javaButton) {
             new JavaManageDialog(getContext(), java -> {
@@ -445,19 +457,19 @@ public class VersionSettingPage extends FCLCommonPage implements ManageUI.Versio
                     .show();
         }
         if (view == rendererButton) {
-            int[] pos = new int[2];
-            view.getLocationInWindow(pos);
-            int windowHeight = getActivity().getWindow().getDecorView().getHeight();
-            int y;
-            if (pos[1] < windowHeight / 2) {
-                y = pos[1];
-            } else {
-                y = 0;
-            }
-            RendererUtil.openRendererMenu(getContext(), view, pos[0], y, ConvertUtils.dip2px(getContext(), 200), windowHeight - y, globalSetting, name -> rendererText.setText(name));
+            new RendererSelectDialog(getContext(), globalSetting, name -> {
+                if (globalSetting && Profiles.getSelectedProfile().getVersionSetting() != null && !Profiles.getSelectedProfile().getVersionSetting().isGlobal()) {
+                    FCLAlertDialog.Builder builder = new FCLAlertDialog.Builder(getContext());
+                    builder.setAlertLevel(FCLAlertDialog.AlertLevel.INFO);
+                    builder.setMessage(getContext().getString(R.string.message_warn_renderer_global_setting));
+                    builder.setNegativeButton(getContext().getString(com.tungsten.fcllibrary.R.string.dialog_positive), null);
+                    builder.create().show();
+                }
+                rendererText.setText(name);
+            }).show();
         }
         if (view == driverButton) {
-            RendererUtil.openDriverMenu(getContext(), view, globalSetting, name -> driverText.setText(name));
+            new DriverSelectDialog(getContext(), globalSetting, name -> driverText.setText(name)).show();
         }
         if (view == rendererInstallButton) {
             new AlertDialog.Builder(getContext())
