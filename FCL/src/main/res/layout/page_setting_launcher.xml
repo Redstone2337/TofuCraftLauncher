@@ -166,6 +166,59 @@
 
                 </androidx.appcompat.widget.LinearLayoutCompat>
 
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@android:color/darker_gray" />
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:orientation="horizontal"
+                    android:paddingStart="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="8dp">
+
+                    <com.tungsten.fcllibrary.component.view.FCLTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:singleLine="true"
+                        android:text="@string/settings_launcher_request_recording_permission"
+                        app:auto_text_tint="true" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
+                    <com.tungsten.fcllibrary.component.view.FCLButton
+                        android:id="@+id/request_audio_record"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:text="@string/settings_launcher_request"
+                        app:ripple="true" />
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@android:color/darker_gray" />
+
+                <com.tungsten.fcllibrary.component.view.FCLSwitch
+                    android:id="@+id/auto_exit_launcher"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="8dp"
+                    android:text="@string/settings_launcher_exit_after_launching" />
+
             </com.tungsten.fcllibrary.component.view.FCLLinearLayout>
 
             <com.tungsten.fcllibrary.component.view.FCLLinearLayout
@@ -175,6 +228,43 @@
                 android:background="@drawable/bg_container_white"
                 android:orientation="vertical"
                 app:auto_linear_background_tint="true">
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:orientation="horizontal"
+                    android:paddingStart="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="8dp">
+
+                    <com.tungsten.fcllibrary.component.view.FCLTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:singleLine="true"
+                        android:text="@string/settings_launcher_theme_mode"
+                        app:auto_text_tint="true" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
+                    <com.tungsten.fcllibrary.component.view.FCLSpinner
+                        android:id="@+id/theme_mode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center" />
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@android:color/darker_gray" />
+
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
@@ -323,47 +413,176 @@
                     android:layout_height="1dp"
                     android:background="@android:color/darker_gray" />
 
-                <androidx.appcompat.widget.LinearLayoutCompat
+                <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="48dp"
-                    android:orientation="horizontal"
                     android:paddingStart="12dp"
                     android:paddingTop="8dp"
                     android:paddingEnd="12dp"
                     android:paddingBottom="8dp">
 
                     <com.tungsten.fcllibrary.component.view.FCLTextView
-                        android:layout_width="wrap_content"
+                        android:id="@+id/text_theme2_dark"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="center"
+                        android:singleLine="true"
+                        android:text="@string/settings_launcher_theme2_dark"
+                        app:auto_text_tint="true"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/reset_theme2_dark"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <com.tungsten.fcllibrary.component.view.FCLButton
+                        android:id="@+id/reset_theme2_dark"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:ellipsize="marquee"
+                        android:marqueeRepeatLimit="marquee_forever"
+                        android:text="@string/button_reset"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/fetch_background_color2_dark"
+                        app:layout_constraintStart_toEndOf="@id/text_theme2_dark"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.13"
+                        app:ripple="true" />
+
+                    <com.tungsten.fcllibrary.component.view.FCLButton
+                        android:id="@+id/fetch_background_color2_dark"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:ellipsize="marquee"
+                        android:marqueeRepeatLimit="marquee_forever"
+                        android:text="@string/settings_launcher_theme_fetch_background"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/theme2_dark"
+                        app:layout_constraintStart_toEndOf="@id/reset_theme2_dark"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.25"
+                        app:ripple="true" />
+
+                    <com.tungsten.fcllibrary.component.view.FCLButton
+                        android:id="@+id/theme2_dark"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:ellipsize="marquee"
+                        android:marqueeRepeatLimit="marquee_forever"
+                        android:text="@string/button_set"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/fetch_background_color2_dark"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintWidth_percent="0.11"
+                        app:ripple="true" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@android:color/darker_gray" />
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:paddingStart="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="8dp">
+
+                    <com.tungsten.fcllibrary.component.view.FCLTextView
+                        android:id="@+id/text"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
                         android:singleLine="true"
                         android:text="@string/settings_launcher_background_lt"
-                        app:auto_text_tint="true" />
-
-                    <View
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
-                        android:layout_weight="1" />
+                        app:auto_text_tint="true"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/reset_background_lt"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
 
                     <com.tungsten.fcllibrary.component.view.FCLButton
                         android:id="@+id/reset_background_lt"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="center"
                         android:text="@string/button_reset"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/background_lt"
+                        app:layout_constraintStart_toEndOf="@id/text"
+                        app:layout_constraintTop_toTopOf="parent"
                         app:ripple="true" />
 
                     <com.tungsten.fcllibrary.component.view.FCLButton
                         android:id="@+id/background_lt"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="center"
                         android:layout_marginStart="10dp"
                         android:text="@string/button_set"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/reset_background_lt"
+                        app:layout_constraintTop_toTopOf="parent"
                         app:ripple="true" />
 
-                </androidx.appcompat.widget.LinearLayoutCompat>
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@android:color/darker_gray" />
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:paddingStart="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="8dp">
+
+                    <com.tungsten.fcllibrary.component.view.FCLTextView
+                        android:id="@+id/text2"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:singleLine="true"
+                        android:text="@string/settings_launcher_background_dk"
+                        app:auto_text_tint="true"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/reset_background_dk"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <com.tungsten.fcllibrary.component.view.FCLButton
+                        android:id="@+id/reset_background_dk"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/button_reset"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/background_dk"
+                        app:layout_constraintStart_toEndOf="@id/text2"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:ripple="true" />
+
+                    <com.tungsten.fcllibrary.component.view.FCLButton
+                        android:id="@+id/background_dk"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:text="@string/button_set"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/reset_background_dk"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:ripple="true" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <View
                     android:layout_width="match_parent"
@@ -385,7 +604,7 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
                         android:singleLine="true"
-                        android:text="@string/settings_launcher_background_dk"
+                        android:text="@string/settings_launcher_background_video"
                         app:auto_text_tint="true" />
 
                     <View
@@ -394,7 +613,7 @@
                         android:layout_weight="1" />
 
                     <com.tungsten.fcllibrary.component.view.FCLButton
-                        android:id="@+id/reset_background_dk"
+                        android:id="@+id/reset_background_live"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
@@ -402,7 +621,7 @@
                         app:ripple="true" />
 
                     <com.tungsten.fcllibrary.component.view.FCLButton
-                        android:id="@+id/background_dk"
+                        android:id="@+id/background_live"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
@@ -411,6 +630,44 @@
                         app:ripple="true" />
 
                 </androidx.appcompat.widget.LinearLayoutCompat>
+
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@android:color/darker_gray" />
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:orientation="horizontal"
+                    android:paddingStart="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="8dp">
+
+                    <com.tungsten.fcllibrary.component.view.FCLTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:singleLine="true"
+                        android:text="@string/settings_launcher_background_video_volume"
+                        app:auto_text_tint="true" />
+
+                    <com.tungsten.fcllibrary.component.view.FCLNumberSeekBar
+                        android:id="@+id/video_background_volume"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:max="100"
+                        android:min="0"
+                        app:suffix="%" />
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
 
                 <View
                     android:layout_width="match_parent"
@@ -608,9 +865,9 @@
                         android:layout_gravity="center"
                         android:layout_marginStart="10dp"
                         android:layout_weight="1"
-                        app:suffix="00"
                         android:max="20"
-                        android:min="1" />
+                        android:min="1"
+                        app:suffix="00" />
 
                 </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -639,9 +896,40 @@
                         android:layout_gravity="center"
                         android:layout_marginStart="10dp"
                         android:layout_weight="1"
-                        app:suffix="MS"
                         android:max="500"
-                        android:min="20" />
+                        android:min="20"
+                        app:suffix="MS" />
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:orientation="horizontal"
+                    android:paddingStart="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="8dp">
+
+                    <com.tungsten.fcllibrary.component.view.FCLTextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:singleLine="true"
+                        android:text="@string/settings_disable_fullscreen_input"
+                        app:auto_text_tint="true" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
+                    <com.tungsten.fcllibrary.component.view.FCLSwitch
+                        android:id="@+id/disable_fullscreen_input"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center" />
 
                 </androidx.appcompat.widget.LinearLayoutCompat>
 

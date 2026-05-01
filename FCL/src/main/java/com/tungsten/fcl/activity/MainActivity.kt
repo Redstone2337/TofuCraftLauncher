@@ -3,23 +3,27 @@ package com.tungsten.fcl.activity
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.SurfaceTexture
 import android.graphics.drawable.GradientDrawable
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.KeyEvent
+import android.view.TextureView
 import android.view.View
 import android.view.animation.BounceInterpolator
 import android.view.animation.OvershootInterpolator
+import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.ActivityCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
@@ -32,6 +36,7 @@ import com.mio.ui.dialog.RendererSelectDialog
 import com.mio.util.AnimUtil
 import com.mio.util.AnimUtil.Companion.interpolator
 import com.mio.util.AnimUtil.Companion.startAfter
+import com.mio.util.DisplayUtil
 import com.mio.util.GuideUtil
 import com.mio.util.GuideUtil.Companion.guideTarget
 import com.mio.util.ImageUtil
@@ -44,16 +49,16 @@ import com.tungsten.fcl.setting.ConfigHolder
 import com.tungsten.fcl.setting.Controllers
 import com.tungsten.fcl.setting.Profile
 import com.tungsten.fcl.setting.Profiles
+import com.tungsten.fcl.ui.PageManager
 import com.tungsten.fcl.ui.UIManager
+import com.tungsten.fcl.ui.download.modpack.LocalModpackPage
 import com.tungsten.fcl.ui.version.Versions
 import com.tungsten.fcl.upgrade.UpdateChecker
 import com.tungsten.fcl.util.AndroidUtils
 import com.tungsten.fcl.util.FXUtils
 import com.tungsten.fcl.util.WeakListenerHolder
-import com.tungsten.fclauncher.FCLConfig
 import com.tungsten.fclauncher.bridge.FCLBridge
 import com.tungsten.fclauncher.plugins.DriverPlugin
-import com.tungsten.fclauncher.plugins.RendererPlugin
 import com.tungsten.fclauncher.utils.FCLPath
 import com.tungsten.fclcore.auth.Account
 import com.tungsten.fclcore.auth.authlibinjector.AuthlibInjectorAccount
@@ -106,13 +111,21 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
     private val holder = WeakListenerHolder()
     private lateinit var profile: Profile
     private lateinit var theme: IntegerProperty
+    private lateinit var theme2: IntegerProperty
+    private lateinit var theme2Dark: IntegerProperty
     var isVersionLoading = false
-    private lateinit var permissionResultLauncher: ActivityResultLauncher<String>
+    private var modpackHandled = false
+    lateinit var permissionResultLauncher: ActivityResultLauncher<String>
+    private lateinit var sharedPreferences: SharedPreferences
+    var mediaPlayer: MediaPlayer? = null
+    private var videoPosition = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        modpackHandled = savedInstanceState?.getBoolean("modpack_handled") ?: false
         instance = WeakReference(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
+        sharedPreferences = getSharedPreferences("launcher", MODE_PRIVATE)
         setContentView(binding.root)
         ImageUtil.loadInto(
             binding.background,
@@ -148,6 +161,8 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
         if (!ConfigHolder.isInit()) {
             try {
                 ConfigHolder.init()
+                //当强制关闭进程时，不会经过SplashActivity，此时需要重新初始化
+                RendererManager.init(this@MainActivity)
             } catch (e: IOException) {
                 LOG.log(Level.WARNING, e.message)
             }
@@ -198,7 +213,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                 uiManager.registerDefaultBackEvent {
                     if (uiManager.currentUI === uiManager.mainUI) {
                         val i = Intent(Intent.ACTION_MAIN)
-                        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        i.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         i.addCategory(Intent.CATEGORY_HOME)
                         startActivity(i)
                         exitProcess(0)
@@ -211,6 +226,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                     manage.setOnSelectListener(this@MainActivity)
                     download.setOnSelectListener(this@MainActivity)
                     controller.setOnSelectListener(this@MainActivity)
+                    multiplayer.setOnSelectListener(this@MainActivity)
                     setting.setOnSelectListener(this@MainActivity)
                     home.setSelected(true)
                     home.setOnLongClickListener {
@@ -240,14 +256,8 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                             .create()
                             .show()
                     }
-                }
-                getSharedPreferences("launcher", MODE_PRIVATE).apply {
-                    backend.setPosition(if (getBoolean("backend", false)) 1 else 0, true)
-                    backend.setOnPositionChangedListener {
-                        edit().apply {
-                            putBoolean("backend", it == 1)
-                            apply()
-                        }
+                    if (!modpackHandled) {
+                        handleModpack(intent)
                     }
                 }
                 setupAccountDisplay()
@@ -265,24 +275,47 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
         permissionResultLauncher =
             registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             }
+        setupLiveBackground()
+        refreshScreenSize()
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (event?.keyCode == KeyEvent.KEYCODE_BACK) {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
             _uiManager?.onBackPressed()
             return true
         }
         return super.onKeyDown(keyCode, event)
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("modpack_handled", modpackHandled)
+    }
+
     override fun onPause() {
         super.onPause()
         _uiManager?.onPause()
+        if (shouldPlayVideo() && binding.videoView.isPlaying) {
+            videoPosition = binding.videoView.currentPosition
+            binding.videoView.pause()
+        }
     }
 
     override fun onResume() {
         super.onResume()
         _uiManager?.onResume()
+        if (shouldPlayVideo() && !binding.videoView.isPlaying) {
+            binding.videoView.seekTo(videoPosition)
+            binding.videoView.start()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (shouldPlayVideo()) {
+            mediaPlayer = null
+            binding.videoView.stopPlayback()
+        }
     }
 
     override fun onSelect(view: FCLMenuView) {
@@ -322,6 +355,11 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                 controller -> {
                     title.setTextWithAnim(getString(R.string.controller))
                     uiManager.switchUI(uiManager.controllerUI)
+                }
+
+                multiplayer -> {
+                    title.setTextWithAnim(getString(R.string.terracotta))
+                    uiManager.switchUI(uiManager.multiplayerUI)
                 }
 
                 setting -> {
@@ -366,13 +404,13 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                         .interpolator(OvershootInterpolator()).start()
                     return
                 }
-                FCLBridge.BACKEND_IS_BOAT = binding.backend.position == 1
                 val selectedProfile = Profiles.getSelectedProfile()
                 DriverPlugin.selected = runCatching {
                     DriverPlugin.driverList.find {
                         it.driver == selectedProfile.getVersionSetting(selectedProfile.selectedVersion).driver
                     }
                 }.getOrNull() ?: DriverPlugin.driverList[0]
+                DisplayUtil.refreshDisplayMetrics(this@MainActivity)
                 Versions.launch(this@MainActivity, selectedProfile)
             }
         }
@@ -515,55 +553,70 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
         }
     }
 
+    private fun updateColor() {
+        binding.apply {
+            start.background = createBackground()
+            createBackground().apply {
+                version.background = this
+                jar.background = this
+            }
+            version.backgroundTintList =
+                ColorStateList.valueOf(ThemeEngine.getInstance().theme.color2).apply {
+                    version.backgroundTintList = this
+                    jar.backgroundTintList = this
+                }
+            version.setTextColor(ThemeEngine.getInstance().theme.color2)
+            jar.setTextColor(ThemeEngine.getInstance().theme.color2)
+        }
+
+    }
+
     private fun initBackground() {
         theme = object : IntegerPropertyBase() {
             override fun invalidated() {
                 get()
-                binding.apply {
-                    backend.setSelectedBackground(ThemeEngine.getInstance().theme.ltColor)
-                    backend.setDivider(
-                        ThemeEngine.getInstance().theme.color2,
-                        ConvertUtils.dip2px(this@MainActivity, 1f),
-                        1,
-                        1
-                    )
-                    backend.setBorder(
-                        ConvertUtils.dip2px(this@MainActivity, 1f),
-                        ThemeEngine.getInstance().theme.color2,
-                        0,
-                        0
-                    )
-                    backend.setRipple(ThemeEngine.getInstance().theme.color2)
-                    pojav.textColor = ThemeEngine.getInstance().theme.color2
-                    boat.textColor = ThemeEngine.getInstance().theme.color2
-                    start.background = createBackground()
-                    createBackground().apply {
-                        version.background = this
-                        jar.background = this
-                    }
-                    version.backgroundTintList =
-                        ColorStateList.valueOf(ThemeEngine.getInstance().theme.color2).apply {
-                            version.backgroundTintList = this
-                            jar.backgroundTintList = this
-                        }
-                    version.setTextColor(ThemeEngine.getInstance().theme.color2)
-                    jar.setTextColor(ThemeEngine.getInstance().theme.color2)
-                }
+                updateColor()
             }
 
-            override fun getBean(): Any? {
+            override fun getBean(): Any {
                 return this
             }
 
-            override fun getName(): String? {
+            override fun getName(): String {
                 return "theme"
             }
         }
-        theme.bind(ThemeEngine.getInstance().theme.colorProperty())
-        theme.bind(ThemeEngine.getInstance().theme.color2Property())
-        binding.backend.setOnApplyWindowInsetsListener { _, insets ->
-            insets
+        theme2 = object : IntegerPropertyBase() {
+            override fun invalidated() {
+                get()
+                updateColor()
+            }
+
+            override fun getBean(): Any {
+                return this
+            }
+
+            override fun getName(): String {
+                return "theme2"
+            }
         }
+        theme2Dark = object : IntegerPropertyBase() {
+            override fun invalidated() {
+                get()
+                updateColor()
+            }
+
+            override fun getBean(): Any {
+                return this
+            }
+
+            override fun getName(): String {
+                return "theme2Dark"
+            }
+        }
+        theme.bind(ThemeEngine.getInstance().theme.colorProperty())
+        theme2.bind(ThemeEngine.getInstance().theme.color2Property())
+        theme2Dark.bind(ThemeEngine.getInstance().theme.color2DarkProperty())
     }
 
     private fun createBackground(): GradientDrawable {
@@ -606,7 +659,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                 objectAnimator.interpolator(BounceInterpolator()).startAfter((index + 1) * 100L)
             }
             AnimUtil.playTranslationY(
-                listOf(home, manage, download, controller, setting, back),
+                listOf(home, manage, download, controller, multiplayer, setting, back),
                 speed * 100L,
                 -300f,
                 0f
@@ -614,7 +667,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                 objectAnimator.interpolator(BounceInterpolator()).startAfter((index + 1) * 100L)
             }
             AnimUtil.playTranslationX(
-                listOf(home, manage, download, controller, setting, back),
+                listOf(home, manage, download, controller, multiplayer, setting, back),
                 speed * 100L,
                 -100f,
                 0f
@@ -635,7 +688,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
                 "${application.packageName}.provider",
                 file
             )
-            intent.setType("text/plain")
+            intent.type = "text/plain"
             intent.putExtra(Intent.EXTRA_STREAM, uri)
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             startActivity(
@@ -649,7 +702,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
         }
     }
 
-    private fun checkNotificationPermission(): Boolean {
+    fun checkNotificationPermission(): Boolean {
         return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             true
         } else {
@@ -660,7 +713,7 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
         }
     }
 
-    private fun requestNotificationPermission() {
+    fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || !ActivityCompat.shouldShowRequestPermissionRationale(
                 this,
                 Manifest.permission.POST_NOTIFICATIONS
@@ -680,6 +733,97 @@ class MainActivity : FCLActivity(), OnSelectListener, View.OnClickListener {
             }
         } else {
             permissionResultLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    fun shouldPlayVideo(): Boolean {
+        return File(FCLPath.LIVE_BACKGROUND_PATH).exists()
+    }
+
+    fun setupLiveBackground() {
+        if (shouldPlayVideo()) {
+            binding.videoView.visibility = View.VISIBLE
+            binding.videoView.setVideoPath(FCLPath.LIVE_BACKGROUND_PATH)
+            binding.videoView.setOnPreparedListener {
+                mediaPlayer = it
+                it.isLooping = true
+                setLiveBackgroundVolume()
+                binding.videoView.start()
+            }
+            binding.videoView.setOnCompletionListener {
+                binding.videoView.seekTo(0)
+                binding.videoView.start()
+            }
+            binding.videoView.setOnErrorListener { mp, what, extra ->
+                mediaPlayer = null
+                return@setOnErrorListener true
+            }
+        } else {
+            mediaPlayer = null
+            binding.videoView.visibility = View.GONE
+            binding.videoView.stopPlayback()
+        }
+    }
+
+    fun setLiveBackgroundVolume() {
+        mediaPlayer?.let {
+            val volume = sharedPreferences.getInt("videoBackgroundVolume", 100) / 100f
+            it.setVolume(volume, volume)
+        }
+    }
+
+    private fun handleModpack(intent: Intent) {
+        val path = intent.getStringExtra("modpack_cache_path") ?: return
+        modpackHandled = true
+        val file = File(path)
+        if (!file.exists()) return
+        Toast.makeText(
+            this,
+            getString(R.string.modpack_external_detected, file.name),
+            Toast.LENGTH_SHORT
+        ).show()
+        binding.download.isSelected = true
+        val downloadUI = uiManager.downloadUI
+        downloadUI.checkPageManager {
+            val page = LocalModpackPage(
+                this,
+                PageManager.PAGE_ID_TEMP,
+                downloadUI.container,
+                R.layout.page_modpack,
+                profile,
+                null,
+                file
+            )
+            downloadUI.pageManager.showTempPage(page)
+        }
+    }
+
+    private fun refreshScreenSize() {
+        binding.textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+            override fun onSurfaceTextureAvailable(
+                surface: SurfaceTexture,
+                width: Int,
+                height: Int
+            ) {
+                DisplayUtil.screenWidth = width
+                DisplayUtil.screenHeight = height
+            }
+
+            override fun onSurfaceTextureSizeChanged(
+                surface: SurfaceTexture,
+                width: Int,
+                height: Int
+            ) {
+                DisplayUtil.screenWidth = width
+                DisplayUtil.screenHeight = height
+            }
+
+            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+                return true
+            }
+
+            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
+            }
         }
     }
 }

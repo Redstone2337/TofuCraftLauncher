@@ -8,6 +8,16 @@
     android:transitionName="background"
     tools:context=".activity.MainActivity">
 
+    <TextureView
+        android:id="@+id/texture_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+    <VideoView
+        android:id="@+id/video_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/left_menu"
         android:layout_width="wrap_content"
@@ -59,9 +69,19 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:src="@drawable/ic_baseline_videogame_asset_24"
-            app:layout_constraintBottom_toTopOf="@id/setting"
+            app:layout_constraintBottom_toTopOf="@id/multiplayer"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/download" />
+
+        <com.tungsten.fcllibrary.component.view.FCLMenuView
+            android:id="@+id/multiplayer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:src="@drawable/ic_outline_account_tree_24"
+            app:layout_constraintBottom_toTopOf="@id/setting"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/controller" />
 
         <com.tungsten.fcllibrary.component.view.FCLMenuView
             android:id="@+id/setting"
@@ -71,7 +91,7 @@
             android:src="@drawable/ic_baseline_settings_24"
             app:layout_constraintBottom_toTopOf="@id/back"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/controller" />
+            app:layout_constraintTop_toBottomOf="@id/multiplayer" />
 
         <com.tungsten.fcllibrary.component.view.FCLMenuView
             android:id="@+id/back"
@@ -96,35 +116,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintWidth_percent="0.25">
 
-        <com.addisonelliott.segmentedbutton.SegmentedButtonGroup
-            android:id="@+id/backend"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:layout_marginHorizontal="8dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:radius="30dp">
-
-            <com.addisonelliott.segmentedbutton.SegmentedButton
-                android:id="@+id/pojav"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:padding="10dp"
-                app:text="Pojav" />
-
-            <com.addisonelliott.segmentedbutton.SegmentedButton
-                android:id="@+id/boat"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:padding="10dp"
-                app:text="Boat" />
-
-        </com.addisonelliott.segmentedbutton.SegmentedButtonGroup>
-
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/account"
             android:layout_width="wrap_content"
@@ -137,7 +128,7 @@
             app:layout_constraintBottom_toTopOf="@id/start"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/backend">
+            app:layout_constraintTop_toTopOf="parent">
 
             <com.tungsten.fcllibrary.component.view.FCLImageView
                 android:id="@+id/avatar"

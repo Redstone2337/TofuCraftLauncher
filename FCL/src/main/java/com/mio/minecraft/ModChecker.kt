@@ -2,15 +2,13 @@ package com.mio.minecraft
 
 import android.content.Context
 import com.mio.manager.RendererManager
-import com.mio.util.AndroidUtil
+import com.mio.util.getElfArchFromZip
 import com.tungsten.fcl.R
-import com.tungsten.fclauncher.FCLConfig
 import com.tungsten.fclauncher.bridge.FCLBridge
 import com.tungsten.fclauncher.plugins.FFmpegPlugin
 import com.tungsten.fclauncher.utils.Architecture
 import com.tungsten.fclcore.mod.LocalModFile
-import com.tungsten.fclcore.util.versioning.VersionNumber
-import kotlin.jvm.Throws
+import com.tungsten.fclcore.util.versioning.GameVersionNumber
 
 class ModChecker(val context: Context, val version: String) {
     @Throws(ModCheckException::class)
@@ -18,11 +16,11 @@ class ModChecker(val context: Context, val version: String) {
         val exception = runCatching {
             when (mod.id) {
                 "touchcontroller" -> {
-                    bridge.setHasTouchController(true);
+                    bridge.setHasTouchController(true)
                 }
 
                 "physicsmod" -> {
-                    val arch = AndroidUtil.getElfArchFromZip(
+                    val arch = getElfArchFromZip(
                         mod.file.toFile(),
                         "de/fabmax/physxjni/linux/libPhysXJniBindings_64.so"
                     )
@@ -54,11 +52,15 @@ class ModChecker(val context: Context, val version: String) {
                 }
 
                 "yes_steve_model" -> {
-                    val arch = AndroidUtil.getElfArchFromZip(
+                    val arch = getElfArchFromZip(
                         mod.file.toFile(),
                         "META-INF/native/libysm-core.so"
                     )
-                    if (arch.isNotBlank())
+                    val androidLib = getElfArchFromZip(
+                        mod.file.toFile(),
+                        "META-INF/native/libysm-core-android.so"
+                    )
+                    if (arch.isNotBlank() && androidLib.isBlank())
                         throw ModCheckException(
                             context.getString(
                                 R.string.mod_check_yes_steve_model,
@@ -67,7 +69,7 @@ class ModChecker(val context: Context, val version: String) {
                         )
                 }
 
-                "imblocker", "ingameime" -> {
+                "imblocker", "ingameime", "inputmethodblocker" -> {
                     throw ModCheckException(
                         context.getString(
                             R.string.mod_check_imblocker,
@@ -100,7 +102,7 @@ class ModChecker(val context: Context, val version: String) {
                 }
 
                 "axiom" -> {
-                    val arch = AndroidUtil.getElfArchFromZip(
+                    val arch = getElfArchFromZip(
                         mod.file.toFile(),
                         "io/imgui/java/native-bin/libimgui-javaarm64.so"
                     )
@@ -114,7 +116,7 @@ class ModChecker(val context: Context, val version: String) {
                 }
 
                 "sodium", "embeddium" -> {
-                    if (version.isNotEmpty() && bridge.renderer == RendererManager.RENDERER_GL4ES.name && VersionNumber.compare(
+                    if (version.isNotEmpty() && bridge.renderer == RendererManager.RENDERER_GL4ES.name && GameVersionNumber.compare(
                             version,
                             "1.17"
                         ) >= 0
@@ -126,6 +128,24 @@ class ModChecker(val context: Context, val version: String) {
                             )
                         )
                     }
+                }
+
+                "flashback" -> {
+                    throw ModCheckException(
+                        context.getString(
+                            R.string.mod_check_flashback,
+                            mod.file.toFile().name
+                        )
+                    )
+                }
+
+                "ixeris" -> {
+                    throw ModCheckException(
+                        context.getString(
+                            R.string.mod_check_ixeris,
+                            mod.file.toFile().name
+                        )
+                    )
                 }
             }
         }.exceptionOrNull()

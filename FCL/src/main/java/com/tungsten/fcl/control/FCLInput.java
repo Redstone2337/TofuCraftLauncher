@@ -1,5 +1,7 @@
 package com.tungsten.fcl.control;
 
+import static com.tungsten.fclauncher.keycodes.MinecraftKeyBindingMapper.mapBindingToKeycode;
+
 import android.view.Choreographer;
 import android.view.InputDevice;
 import android.view.KeyEvent;
@@ -8,12 +10,15 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 
-import com.tungsten.fcl.FCLApplication;
 import com.tungsten.fcl.control.gamepad.Gamepad;
+import com.tungsten.fcl.setting.GameOption;
 import com.tungsten.fcl.util.AndroidUtils;
 import com.tungsten.fclauncher.bridge.FCLBridge;
 import com.tungsten.fclauncher.keycodes.AndroidKeycodeMap;
 import com.tungsten.fclauncher.keycodes.FCLKeycodes;
+import com.tungsten.fclauncher.keycodes.LwjglKeycodeMap;
+
+import org.lwjgl.glfw.CallbackBridge;
 
 import java.util.HashMap;
 
@@ -50,6 +55,10 @@ public class FCLInput implements View.OnCapturedPointerListener {
     @NonNull
     private final GameMenu menu;
 
+    public GameMenu getMenu() {
+        return menu;
+    }
+
     private String pointerId;
 
     public void setPointerId(String pointerId) {
@@ -67,8 +76,8 @@ public class FCLInput implements View.OnCapturedPointerListener {
     public FCLInput(@NonNull GameMenu menu) {
         this.menu = menu;
 
-        this.screenWidth = AndroidUtils.getScreenWidth(FCLApplication.getCurrentActivity());
-        this.screenHeight = AndroidUtils.getScreenHeight(FCLApplication.getCurrentActivity());
+        this.screenWidth = AndroidUtils.getScreenWidth();
+        this.screenHeight = AndroidUtils.getScreenHeight();
     }
 
     public void setPointer(int x, int y, String id) {
@@ -99,9 +108,19 @@ public class FCLInput implements View.OnCapturedPointerListener {
             if (MOUSE_MAP.containsKey(keycode) && MOUSE_MAP.get(keycode) != null) {
                 menu.getBridge().pushEventMouseButton(MOUSE_MAP.get(keycode), press);
             } else {
+                int code = LwjglKeycodeMap.convertKeycode(keycode);
+                if (code >= 0) {
+                    CallbackBridge.setModifiers(code, press);
+                }
                 menu.getBridge().pushEventKey(keycode, 0, press);
             }
         }
+    }
+
+    public void sendBoundKeyEvent(GameOption option, String binding, int defaultKeycode, boolean press) {
+        String key = binding == null ? null : option.get(binding);
+        int keycode = mapBindingToKeycode(key, defaultKeycode);
+        sendKeyEvent(keycode, press);
     }
 
     public void sendChar(char keyChar) {
@@ -130,7 +149,7 @@ public class FCLInput implements View.OnCapturedPointerListener {
         this.focusableView = view;
     }
 
-    private boolean handleExternalMouseEvent(MotionEvent event) {
+    public boolean handleExternalMouseEvent(MotionEvent event) {
         if (event.getActionMasked() == MotionEvent.ACTION_BUTTON_PRESS || event.getActionMasked() == MotionEvent.ACTION_BUTTON_RELEASE) {
             boolean press = event.getActionMasked() == MotionEvent.ACTION_BUTTON_PRESS;
             if (event.getActionButton() == MotionEvent.BUTTON_PRIMARY) {
@@ -154,31 +173,42 @@ public class FCLInput implements View.OnCapturedPointerListener {
     }
 
     private boolean handleMouse(MotionEvent event, float deltaTimeScale) {
-        int deltaX;
-        int deltaY;
-        if (event != null) {
-            deltaX = (int) (event.getX() * menu.getMenuSetting().getMouseSensitivity());
-            deltaY = (int) (event.getY() * menu.getMenuSetting().getMouseSensitivity());
-        } else {
-            deltaX = (int) (lastAxisZ * deltaTimeScale * 10 * menu.getMenuSetting().getMouseSensitivity());
-            deltaY = (int) (lastAxisRZ * deltaTimeScale * 10 * menu.getMenuSetting().getMouseSensitivity());
-        }
-        if (menu.getCursorMode() == FCLBridge.CursorEnabled) {
-            int targetX = (int) Math.max(0, Math.min(screenWidth, menu.getCursorX() + deltaX * menu.getMenuSetting().getMouseSensitivityCursor()));
-            int targetY = (int) Math.max(0, Math.min(screenHeight, menu.getCursorY() + deltaY * menu.getMenuSetting().getMouseSensitivityCursor()));
-            setPointerId(EXTERNAL_MOUSE_ID);
-            setPointer(targetX, targetY, EXTERNAL_MOUSE_ID);
-            setPointerId(null);
-        } else {
-            int targetX = menu.getPointerX() + deltaX;
-            int targetY = menu.getPointerY() + deltaY;
-            if (menu.getMenuSetting().isEnableGyroscope()) {
-                menu.setPointerX(targetX);
-                menu.setPointerY(targetY);
+        if (event == null || event.getAction() == MotionEvent.ACTION_MOVE) {
+            int deltaX;
+            int deltaY;
+            if (event != null) {
+                double tX = event.getX();
+                double tY = event.getY();
+                final int historySize = event.getHistorySize();
+                for (int i = 0; i < historySize; i++) {
+                    tX += event.getHistoricalX(i);
+                    tY += event.getHistoricalY(i);
+                }
+                tX *= menu.getMenuSetting().getMouseSensitivity();
+                tY *= menu.getMenuSetting().getMouseSensitivity();
+                deltaX = (int) tX;
+                deltaY = (int) tY;
             } else {
+                deltaX = (int) (lastAxisZ * deltaTimeScale * 10 * menu.getMenuSetting().getMouseSensitivity());
+                deltaY = (int) (lastAxisRZ * deltaTimeScale * 10 * menu.getMenuSetting().getMouseSensitivity());
+            }
+            if (menu.getCursorMode() == FCLBridge.CursorEnabled) {
+                int targetX = (int) Math.max(0, Math.min(screenWidth, menu.getCursorX() + deltaX * menu.getMenuSetting().getMouseSensitivityCursor()));
+                int targetY = (int) Math.max(0, Math.min(screenHeight, menu.getCursorY() + deltaY * menu.getMenuSetting().getMouseSensitivityCursor()));
                 setPointerId(EXTERNAL_MOUSE_ID);
                 setPointer(targetX, targetY, EXTERNAL_MOUSE_ID);
                 setPointerId(null);
+            } else {
+                int targetX = menu.getPointerX() + deltaX;
+                int targetY = menu.getPointerY() + deltaY;
+                if (menu.getMenuSetting().isEnableGyroscope()) {
+                    menu.setPointerX(targetX);
+                    menu.setPointerY(targetY);
+                } else {
+                    setPointerId(EXTERNAL_MOUSE_ID);
+                    setPointer(targetX, targetY, EXTERNAL_MOUSE_ID);
+                    setPointerId(null);
+                }
             }
         }
         if (event != null) {
@@ -214,6 +244,7 @@ public class FCLInput implements View.OnCapturedPointerListener {
         if (event.getKeyCode() == KeyEvent.KEYCODE_ENTER && KeyEvent.metaStateHasModifiers(event.getMetaState(), KeyEvent.META_SHIFT_ON)) {
             if (event.getAction() == KeyEvent.ACTION_UP) {
                 menu.getTouchCharInput().switchKeyboardState();
+                menu.getInput().sendKeyEvent(FCLKeycodes.KEY_RIGHTSHIFT, false);
             }
             return true;
         }
@@ -223,8 +254,9 @@ public class FCLInput implements View.OnCapturedPointerListener {
             }
             return true;
         }
+
         //gamepad
-        if (Gamepad.isGamepadEvent(event)) {
+        if (!menu.isGamepadDisabled() && Gamepad.isGamepadEvent(event)) {
             checkGamepad();
             return gamepad.handleKeyEvent(event);
         }
@@ -239,7 +271,7 @@ public class FCLInput implements View.OnCapturedPointerListener {
     }
 
     public boolean handleGenericMotionEvent(MotionEvent event) {
-        if (Gamepad.isGamepadEvent(event)) {
+        if (!menu.isGamepadDisabled() && Gamepad.isGamepadEvent(event)) {
             checkGamepad();
             if (choreographer == null) {
                 choreographer = Choreographer.getInstance();

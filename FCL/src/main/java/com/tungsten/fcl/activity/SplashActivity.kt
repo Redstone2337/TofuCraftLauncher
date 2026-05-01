@@ -16,24 +16,24 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.mio.JavaManager
+import com.mio.manager.RendererManager
 import com.mio.util.ImageUtil
 import com.tungsten.fcl.R
 import com.tungsten.fcl.fragment.EulaFragment
 import com.tungsten.fcl.fragment.RuntimeFragment
 import com.tungsten.fcl.setting.ConfigHolder
+import com.tungsten.fcl.util.AndroidUtils
 import com.tungsten.fcl.util.RuntimeUtils
-import com.tungsten.fclauncher.plugins.DriverPlugin
-import com.tungsten.fclauncher.plugins.RendererPlugin
 import com.tungsten.fclauncher.utils.FCLPath
 import com.tungsten.fclcore.util.Logging
 import com.tungsten.fclcore.util.io.FileUtils
 import com.tungsten.fcllibrary.component.FCLActivity
 import com.tungsten.fcllibrary.component.dialog.FCLAlertDialog
-import com.tungsten.fcllibrary.component.dialog.FCLAlertDialog.ButtonListener
 import com.tungsten.fcllibrary.component.theme.ThemeEngine
 import com.tungsten.fcllibrary.util.LocaleUtils
 import kotlinx.coroutines.Dispatchers
@@ -45,8 +45,6 @@ import java.io.IOException
 import java.nio.file.Paths
 import java.util.Locale
 import java.util.logging.Level
-import androidx.core.content.edit
-import com.mio.manager.RendererManager
 
 @SuppressLint("CustomSplashScreen")
 class SplashActivity : FCLActivity() {
@@ -54,12 +52,11 @@ class SplashActivity : FCLActivity() {
     private lateinit var permissionResultLauncher: ActivityResultLauncher<Array<String>>
     var lwjgl: Boolean = false
     var cacio: Boolean = false
-    var cacio11: Boolean = false
     var cacio17: Boolean = false
     var java8: Boolean = false
-    var java11: Boolean = false
     var java17: Boolean = false
     var java21: Boolean = false
+    var java25: Boolean = false
     var jna: Boolean = false
     private lateinit var sharedPreferences: SharedPreferences
 
@@ -121,7 +118,7 @@ class SplashActivity : FCLActivity() {
                 Logging.start(Paths.get(FCLPath.LOG_DIR))
                 initState()
             }.await()
-            if (lwjgl && cacio && cacio11 && cacio17 && java8 && java11 && java17 && java21 && jna) {
+            if (lwjgl && cacio && cacio17 && java8 && java17 && java21 && java25 && jna) {
                 enterLauncher()
             } else {
                 start()
@@ -152,11 +149,36 @@ class SplashActivity : FCLActivity() {
                 }
             }
             startActivity(
-                Intent(this@SplashActivity, MainActivity::class.java),
+                handleModpack(Intent(this@SplashActivity, MainActivity::class.java)),
                 ActivityOptionsCompat.makeCustomAnimation(this@SplashActivity, 0, 0).toBundle()
             )
             finish()
         }
+    }
+
+    private fun handleModpack(newIntent: Intent): Intent {
+        val intent = intent
+        val action = intent.action
+        val data = intent.data
+
+        if (Intent.ACTION_VIEW == action && data != null) {
+            try {
+                val fileName = AndroidUtils.getFileName(this, data) ?: "modpack"
+                val cacheFile = File(cacheDir, fileName)
+                contentResolver.openInputStream(data)?.use { input ->
+                    cacheFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                newIntent.putExtra("modpack_cache_path", cacheFile.absolutePath)
+            } catch (e: Exception) {
+                Logging.LOG.log(
+                    Level.WARNING,
+                    "Failed to handle modpack intent: ${e.message}"
+                )
+            }
+        }
+        return newIntent
     }
 
     private fun requestPermission() {
@@ -213,26 +235,19 @@ class SplashActivity : FCLActivity() {
             lwjgl = RuntimeUtils.isLatest(
                 FCLPath.LWJGL_DIR,
                 "/assets/app_runtime/lwjgl"
-            ) && RuntimeUtils.isLatest(
-                FCLPath.LWJGL_DIR + "-boat",
-                "/assets/app_runtime/lwjgl-boat"
             )
             cacio = RuntimeUtils.isLatest(
                 FCLPath.CACIOCAVALLO_8_DIR,
                 "/assets/app_runtime/caciocavallo"
-            )
-            cacio11 = RuntimeUtils.isLatest(
-                FCLPath.CACIOCAVALLO_11_DIR,
-                "/assets/app_runtime/caciocavallo11"
             )
             cacio17 = RuntimeUtils.isLatest(
                 FCLPath.CACIOCAVALLO_17_DIR,
                 "/assets/app_runtime/caciocavallo17"
             )
             java8 = RuntimeUtils.isLatest(FCLPath.JAVA_8_PATH, "/assets/app_runtime/java/jre8")
-            java11 = RuntimeUtils.isLatest(FCLPath.JAVA_11_PATH, "/assets/app_runtime/java/jre11")
             java17 = RuntimeUtils.isLatest(FCLPath.JAVA_17_PATH, "/assets/app_runtime/java/jre17")
             java21 = RuntimeUtils.isLatest(FCLPath.JAVA_21_PATH, "/assets/app_runtime/java/jre21")
+            java25 = RuntimeUtils.isLatest(FCLPath.JAVA_25_PATH, "/assets/app_runtime/java/jre25")
             jna = RuntimeUtils.isLatest(FCLPath.JNA_PATH, "/assets/app_runtime/jna")
             if (!File(FCLPath.JAVA_PATH, "resolv.conf").exists()) {
                 if (LocaleUtils.getSystemLocale().displayName != Locale.CHINA.displayName) {

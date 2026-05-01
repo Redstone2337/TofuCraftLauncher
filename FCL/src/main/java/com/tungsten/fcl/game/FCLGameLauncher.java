@@ -22,10 +22,10 @@ import android.content.Context;
 import com.mio.data.Renderer;
 import com.mio.manager.RendererManager;
 import com.tungsten.fcl.R;
+import com.tungsten.fcl.setting.GameOption;
 import com.tungsten.fcl.util.RuntimeUtils;
-import com.tungsten.fclauncher.FCLConfig;
-import com.tungsten.fclauncher.utils.FCLPath;
 import com.tungsten.fclauncher.bridge.FCLBridge;
+import com.tungsten.fclauncher.utils.FCLPath;
 import com.tungsten.fclcore.auth.AuthInfo;
 import com.tungsten.fclcore.game.GameRepository;
 import com.tungsten.fclcore.game.LaunchOptions;
@@ -33,7 +33,7 @@ import com.tungsten.fclcore.game.Version;
 import com.tungsten.fclcore.launch.DefaultLauncher;
 import com.tungsten.fclcore.util.Logging;
 import com.tungsten.fclcore.util.io.FileUtils;
-import com.tungsten.fclcore.util.versioning.VersionNumber;
+import com.tungsten.fclcore.util.versioning.GameVersionNumber;
 import com.tungsten.fcllibrary.util.LocaleUtils;
 
 import java.io.BufferedReader;
@@ -71,50 +71,46 @@ public final class FCLGameLauncher extends DefaultLauncher {
         } catch (IOException e) {
             Logging.LOG.log(Level.WARNING, "Unable to disable forge animation", e);
         }
-
-        if (optionsFile.exists()) {
-            modifyOptions(optionsFile, false);
-            return;
+        GameOption gameOption = null;
+        if (!optionsFile.exists()) {
+            try {
+                RuntimeUtils.copyAssets(context, "options.txt", optionsFile.getAbsolutePath());
+                gameOption = new GameOption(optionsFile.getParent());
+                gameOption.set("lang", LocaleUtils.isChinese(context) ? "zh_cn" : "en_us");
+            } catch (IOException e) {
+                Logging.LOG.log(Level.WARNING, "Unable to generate options.txt", e);
+            }
         }
-        try {
-            RuntimeUtils.copyAssets(context, "options.txt", optionsFile.getAbsolutePath());
-        } catch (IOException e) {
-            Logging.LOG.log(Level.WARNING, "Unable to generate options.txt", e);
-        }
-
-        modifyOptions(optionsFile, true);
+        if (gameOption == null)
+            gameOption = new GameOption(optionsFile.getParent());
+        fixLang(gameOption);
+        fixOptions(gameOption);
+        gameOption.save();
     }
 
-    private void modifyOptions(File optionsFile, boolean overwrite) {
-        StringBuilder str = new StringBuilder();
-        String lang;
-        VersionNumber gameVersion = VersionNumber.asVersion(repository.getGameVersion(version).orElse("0.0"));
+    private void fixOptions(GameOption gameOption) {
+        GameVersionNumber gameVersion = GameVersionNumber.asGameVersion(repository.getGameVersion(version).orElse("0.0"));
+        gameOption.set("touchscreen", "false");
+        gameOption.set("options.narrator", "0"); //关闭文本转语音功能
+        if (gameVersion.compareTo("1.13") < 0) {
+            gameOption.set("key_key.fullscreen", "0");
+            gameOption.set("key_key.streamStartStop", "0");
+        }
+    }
+
+    private void fixLang(GameOption gameOption) {
+        GameVersionNumber gameVersion = GameVersionNumber.asGameVersion(repository.getGameVersion(version).orElse("0.0"));
         if (gameVersion.compareTo("1.1") < 0) {
-            lang = null;
-        } else if (gameVersion.compareTo("1.11") < 0) {
-            lang = "zh_CN";
-        } else {
-            lang = "zh_cn";
+            return;
         }
-        try (BufferedReader bfr = new BufferedReader(new FileReader(optionsFile))) {
-            String line;
-            while ((line = bfr.readLine()) != null) {
-                if (line.contains("lang:") && LocaleUtils.isChinese(context) && overwrite && lang != null) {
-                    str.append("lang:").append(lang).append("\n");
-                } else {
-                    str.append(line).append("\n");
-                }
-            }
-        } catch (Exception e) {
-            Logging.LOG.log(Level.WARNING, "Unable to read options.txt.", e);
-        }
-        if (!"".equals(str.toString())) {
-            try (FileWriter fw = new FileWriter(optionsFile)) {
-                fw.write(str.toString());
-            } catch (IOException e) {
-                Logging.LOG.log(Level.WARNING, "Unable to write options.txt.", e);
-            }
-        }
+        boolean toUpper = gameVersion.compareTo("1.11") < 0;
+        String lang;
+        lang = gameOption.get("lang");
+        if (lang == null) return;
+        String[] parts = lang.split("_", 2);
+        if (parts.length != 2) return;
+        lang = parts[0] + "_" + (toUpper ? parts[1].toUpperCase() : parts[1].toLowerCase());
+        gameOption.set("lang", lang);
     }
 
     private void modifyIfConfigDetected(String config, String option, String replacement, boolean overwrite, Renderer... renderers) {
@@ -142,7 +138,7 @@ public final class FCLGameLauncher extends DefaultLauncher {
                         str.append(line).append("\n");
                     }
                 }
-                if (!overwrite && !str.toString().contains(replacement)) {
+                if (!overwrite && !str.toString().contains(replacement.replace("false", "").replace("true", ""))) {
                     str.append(replacement);
                 }
             } catch (Exception e) {
@@ -181,18 +177,15 @@ public final class FCLGameLauncher extends DefaultLauncher {
         modifyIfConfigDetected("rubidium-mixins.properties", "", "mixin.features.chunk_rendering=false", false, RendererManager.RENDERER_GL4ES, RendererManager.RENDERER_VGPU);
         // DraconicEvolution
         String config = "brandon3055/DraconicEvolution.cfg";
-        modifyIfConfigDetected(config, "B:useShaders=", "B:useShaders=false", true, RendererManager.RENDERER_GL4ES, RendererManager.RENDERER_VGPU);
-        modifyIfConfigDetected(config, "B:\"crystalShaders\"=", "B:\"crystalShaders\"=false", true, RendererManager.RENDERER_GL4ES, RendererManager.RENDERER_VGPU);
-        modifyIfConfigDetected(config, "B:\"reactorShaders\"=", "B:\"reactorShaders\"=false", true, RendererManager.RENDERER_GL4ES, RendererManager.RENDERER_VGPU);
-        modifyIfConfigDetected(config, "B:\"guardianShaders\"=", "B:\"guardianShaders\"=false", true, RendererManager.RENDERER_GL4ES, RendererManager.RENDERER_VGPU);
-        modifyIfConfigDetected(config, "B:\"otherShaders\"=", "B:\"otherShaders\"=false", true, RendererManager.RENDERER_GL4ES, RendererManager.RENDERER_VGPU);
+        modifyIfConfigDetected(config, "B:useShaders=", "B:useShaders=false", true, RendererManager.RENDERER_GL4ES, RendererManager.RENDERER_VGPU, RendererManager.RENDERER_NGGL4ES);
+        modifyIfConfigDetected(config, "B:\"crystalShaders\"=", "B:\"crystalShaders\"=false", true, RendererManager.RENDERER_GL4ES, RendererManager.RENDERER_VGPU, RendererManager.RENDERER_NGGL4ES);
+        modifyIfConfigDetected(config, "B:\"reactorShaders\"=", "B:\"reactorShaders\"=false", true, RendererManager.RENDERER_GL4ES, RendererManager.RENDERER_VGPU, RendererManager.RENDERER_NGGL4ES);
+        modifyIfConfigDetected(config, "B:\"guardianShaders\"=", "B:\"guardianShaders\"=false", true, RendererManager.RENDERER_GL4ES, RendererManager.RENDERER_VGPU, RendererManager.RENDERER_NGGL4ES);
+        modifyIfConfigDetected(config, "B:\"otherShaders\"=", "B:\"otherShaders\"=false", true, RendererManager.RENDERER_GL4ES, RendererManager.RENDERER_VGPU, RendererManager.RENDERER_NGGL4ES);
         // Pixelmon
         modifyIfConfigDetected("pixelmon/config.yml", "use-discord-rich-presence:", "use-discord-rich-presence: false", true);
         // ImmersiveEngineering
-        modifyIfConfigDetected("immersiveengineering-client.toml", "stencilBufferEnabled", "stencilBufferEnabled = false", true, RendererManager.RENDERER_GL4ES, RendererManager.RENDERER_VGPU);
-        // Create
-        modifyIfConfigDetected("flywheel-client.toml", "enabled", "enabled = false", true, RendererManager.RENDERER_GL4ES);
-        modifyIfConfigDetected("flywheel-client.toml", "backend =", "backend = \"OFF\"", true, RendererManager.RENDERER_GL4ES);
+        modifyIfConfigDetected("immersiveengineering-client.toml", "stencilBufferEnabled", "stencilBufferEnabled = false", true, RendererManager.RENDERER_GL4ES, RendererManager.RENDERER_VGPU, RendererManager.RENDERER_NGGL4ES);
         return super.launch();
     }
 }

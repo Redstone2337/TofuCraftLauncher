@@ -1,8 +1,6 @@
 package com.tungsten.fcl.util;
 
 import static android.content.Context.CLIPBOARD_SERVICE;
-import static android.content.Context.MODE_PRIVATE;
-import static android.os.Build.VERSION.SDK_INT;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -12,10 +10,7 @@ import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.database.Cursor;
-import android.graphics.Point;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.opengl.EGL14;
@@ -23,17 +18,14 @@ import android.opengl.EGLConfig;
 import android.opengl.EGLContext;
 import android.opengl.EGLDisplay;
 import android.opengl.GLES20;
-import android.os.Build;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
-import android.view.DisplayCutout;
-import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.widget.Toast;
 
+import com.mio.util.DisplayUtil;
 import com.tungsten.fcl.R;
 import com.tungsten.fcl.activity.WebActivity;
-import com.tungsten.fclauncher.utils.FCLPath;
 import com.tungsten.fclcore.util.Logging;
 import com.tungsten.fclcore.util.io.FileUtils;
 import com.tungsten.fclcore.util.io.IOUtils;
@@ -53,9 +45,9 @@ public class AndroidUtils {
         Intent intent = new Intent(Intent.ACTION_VIEW, uri);
         ComponentName componentName = intent.resolveActivity(context.getPackageManager());
         if (componentName != null) {
-            context.startActivity(intent);
+            context.startActivity(Intent.createChooser(intent, ""));
         } else {
-            ClipboardManager clipboard = (ClipboardManager) FCLPath.CONTEXT.getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
             ClipData clip = ClipData.newPlainText("FCL Clipboard", link);
             clipboard.setPrimaryClip(clip);
             Toast.makeText(context, context.getString(R.string.open_link_failed), Toast.LENGTH_LONG).show();
@@ -102,44 +94,16 @@ public class AndroidUtils {
     }
 
 
-    public static int getScreenHeight(Context context) {
-        WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-        Point point = new Point();
-        wm.getDefaultDisplay().getRealSize(point);
-        return point.y;
+    public static int getScreenHeight() {
+        if(DisplayUtil.screenHeight != -1)
+            return DisplayUtil.screenHeight;
+        return DisplayUtil.currentDisplayMetrics.heightPixels;
     }
 
-    public static int getScreenWidth(Activity context) {
-        SharedPreferences sharedPreferences;
-        sharedPreferences = context.getSharedPreferences("theme", MODE_PRIVATE);
-        boolean fullscreen = sharedPreferences.getBoolean("fullscreen", false);
-        WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-        Point point = new Point();
-        wm.getDefaultDisplay().getRealSize(point);
-        if (fullscreen || SDK_INT < Build.VERSION_CODES.P) {
-            return point.x;
-        } else {
-            return point.x - getSafeInset(context);
-        }
-    }
-
-    public static int getSafeInset(Activity context) {
-        try {
-            if (SDK_INT >= Build.VERSION_CODES.P) {
-                WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-                DisplayCutout cutout;
-                if (SDK_INT >= Build.VERSION_CODES.R) {
-                    cutout = wm.getCurrentWindowMetrics().getWindowInsets().getDisplayCutout();
-                } else {
-                    cutout = context.getWindow().getDecorView().getRootWindowInsets().getDisplayCutout();
-                }
-                int safeInsetLeft = cutout != null ? cutout.getSafeInsetLeft() : 0;
-                int safeInsetRight = cutout != null ? cutout.getSafeInsetRight() : 0;
-                return Math.max(safeInsetLeft, safeInsetRight);
-            }
-        } catch (Throwable ignored) {
-        }
-        return 0;
+    public static int getScreenWidth() {
+        if(DisplayUtil.screenWidth != -1)
+            return DisplayUtil.screenWidth;
+        return DisplayUtil.currentDisplayMetrics.widthPixels;
     }
 
     @SuppressWarnings("resource")

@@ -82,6 +82,30 @@
                 app:layout_constraintTop_toBottomOf="@id/switch_hide_view" />
 
             <com.tungsten.fcllibrary.component.view.FCLTextView
+                android:id="@+id/open_multiplayer_menu_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:singleLine="true"
+                android:text="@string/terracotta_menu"
+                android:textSize="12sp"
+                app:auto_text_tint="true"
+                app:layout_constraintBottom_toBottomOf="@id/open_multiplayer_menu"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="@id/open_multiplayer_menu" />
+
+            <com.tungsten.fcllibrary.component.view.FCLButton
+                android:id="@+id/open_multiplayer_menu"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:singleLine="true"
+                android:text="@string/terracotta_menu_open"
+                android:textSize="12sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/switch_show_fps" />
+
+            <com.tungsten.fcllibrary.component.view.FCLTextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
@@ -98,11 +122,12 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
+                android:layout_marginTop="5dp"
                 android:singleLine="true"
                 android:text="@string/menu_settings_quick_input_button"
                 android:textSize="12sp"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/switch_show_fps" />
+                app:layout_constraintTop_toBottomOf="@id/open_multiplayer_menu" />
 
             <com.tungsten.fcllibrary.component.view.FCLTextView
                 android:layout_width="wrap_content"
@@ -157,8 +182,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:layout_marginBottom="5dp"
-                android:max="2"
-                android:min="-2"
+                android:max="300"
+                android:min="0"
                 app:layout_constraintTop_toBottomOf="@id/item_bar_scale_text" />
 
             <com.tungsten.fcllibrary.component.view.FCLTextView
@@ -417,6 +442,16 @@
                 android:background="@android:color/darker_gray"
                 app:layout_constraintTop_toBottomOf="@id/text_gamepad" />
 
+            <com.tungsten.fcllibrary.component.view.FCLSwitch
+                android:id="@+id/switch_disable_gamepad_mapping"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="@string/menu_settings_gamepad_disable_mapping"
+                android:textSize="12sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/divider_gamepad" />
+
             <com.tungsten.fcllibrary.component.view.FCLTextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -439,7 +474,7 @@
                 android:text="@string/menu_settings_gamepad_reset"
                 android:textSize="12sp"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/divider_gamepad" />
+                app:layout_constraintTop_toBottomOf="@id/switch_disable_gamepad_mapping" />
 
             <com.tungsten.fcllibrary.component.view.FCLTextView
                 android:layout_width="wrap_content"
@@ -559,6 +594,16 @@
                 app:layout_constraintTop_toBottomOf="@id/text_debug" />
 
             <com.tungsten.fcllibrary.component.view.FCLSwitch
+                android:id="@+id/switch_show_memory"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="@string/menu_settings_show_memory"
+                android:textSize="12sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/divider_debug" />
+
+            <com.tungsten.fcllibrary.component.view.FCLSwitch
                 android:id="@+id/switch_performance"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -566,7 +611,7 @@
                 android:text="@string/menu_settings_performance_mode"
                 android:textSize="12sp"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/divider_debug" />
+                app:layout_constraintTop_toBottomOf="@id/switch_show_memory" />
 
             <com.tungsten.fcllibrary.component.view.FCLSwitch
                 android:id="@+id/switch_show_log"

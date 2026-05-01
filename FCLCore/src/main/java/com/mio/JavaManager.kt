@@ -7,7 +7,10 @@ import com.tungsten.fclcore.util.io.FileUtils
 import java.io.File
 
 object JavaManager {
-    private var isInit = false;
+    private var isInit = false
+
+    @JvmField
+    val NO_JAVA_FOUND = JavaVersion(false, "-1", "None")
 
     @JvmStatic
     val javaList: MutableList<JavaVersion> = mutableListOf()
@@ -29,29 +32,41 @@ object JavaManager {
 
     @JvmStatic
     fun remove(name: String) {
-        FileUtils.deleteDirectory(File(FCLPath.JAVA_PATH, name))
+        File(FCLPath.JAVA_PATH, name).let {
+            if (it.exists()) {
+                FileUtils.deleteDirectory(it)
+            }
+        }
         javaList.removeIf { it.name == name }
     }
 
-    fun addToJavaVersion(javaDir: File) {
+    fun addToJavaVersion(javaDir: File): Boolean {
         if (javaDir.isDirectory && javaDir.resolve("release").exists()) {
             val version =
                 Regex("JAVA_VERSION=\"([^\"]+)\"").find(javaDir.resolve("release").readText())
                     ?.let { match ->
                         match.groupValues[1]
-                    } ?: return
+                    } ?: return false
+            javaList.removeIf { it.name == javaDir.name }
             javaList.add(JavaVersion(false, version, javaDir.name))
+            return true
         }
+        return false
     }
 
     @JvmStatic
     fun getJavaFromVersionName(name: String): JavaVersion {
-        return javaList.find { it.name == name } ?: javaList[0]
+        return javaList.find { it.name == name } ?: javaList.first()
     }
 
     @JvmStatic
     fun getSuitableJavaVersion(version: Version?): JavaVersion {
         return findExactOrNextGreater(version?.javaVersion?.majorVersion)
+    }
+
+    @JvmStatic
+    fun getSuitableJavaVersion(version: Int): JavaVersion {
+        return findExactOrNextGreater(version)
     }
 
     private fun findExactOrNextGreater(version: Int?): JavaVersion {
@@ -77,6 +92,6 @@ object JavaManager {
                 }
             }
         }
-        return exact ?: closestGreater!!
+        return exact ?: closestGreater?: NO_JAVA_FOUND
     }
 }

@@ -16,6 +16,8 @@ import org.lwjgl.*;
 import org.lwjgl.system.*;
 
 import static org.lwjgl.opengl.GL20.*;
+import static org.lwjgl.opengl.GL30.GL_MAJOR_VERSION;
+import static org.lwjgl.opengl.GL30.GL_MINOR_VERSION;
 import static org.lwjgl.system.APIUtil.*;
 import static org.lwjgl.system.Checks.*;
 import static org.lwjgl.system.JNI.*;
@@ -315,14 +317,16 @@ public class GLFW
     GLFW_STICKY_KEYS          = 0x33002,
     GLFW_STICKY_MOUSE_BUTTONS = 0x33003,
     GLFW_LOCK_KEY_MODS        = 0x33004,
-    GLFW_RAW_MOUSE_MOTION     = 0x33005;
+    GLFW_RAW_MOUSE_MOTION     = 0x33005,
+    GLFW_UNLIMITED_MOUSE_BUTTONS = 0x33006,
+    GLFW_IME = 0x33007;
 
     /** Cursor state. */
     public static final int
     GLFW_CURSOR_NORMAL   = 0x34001,
     GLFW_CURSOR_HIDDEN   = 0x34002,
-    GLFW_CURSOR_DISABLED = 0x34003;
-
+    GLFW_CURSOR_DISABLED = 0x34003,
+    GLFW_CURSOR_CAPTURED = 0x34004;
     /** The regular arrow cursor shape. */
     public static final int GLFW_ARROW_CURSOR = 0x36001;
 
@@ -493,6 +497,9 @@ public class GLFW
     /* volatile */ public static GLFWWindowPosCallback mGLFWWindowPosCallback;
     /* volatile */ public static GLFWWindowRefreshCallback mGLFWWindowRefreshCallback;
     /* volatile */ public static GLFWWindowSizeCallback mGLFWWindowSizeCallback;
+    public static GLFWPreeditCallback mGLFWPreeditCallback;
+    public static GLFWIMEStatusCallback mGLFWIMEStatusCallback;
+    public static GLFWPreeditCandidateCallback mGLFWPreeditCandidateCallback;
 
     volatile public static int mGLFWWindowWidth, mGLFWWindowHeight;
 
@@ -803,6 +810,28 @@ public class GLFW
         return lastCallback;
     }
 
+    public static GLFWPreeditCallback glfwSetPreeditCallback(@NativeType("GLFWwindow *") long window, @Nullable @NativeType("GLFWpreeditfun") GLFWPreeditCallbackI cbfun) {
+        GLFWPreeditCallback lastCallback = mGLFWPreeditCallback;
+        if (cbfun == null) mGLFWPreeditCallback = null;
+        else mGLFWPreeditCallback = GLFWPreeditCallback.create(cbfun);
+
+        return lastCallback;
+    }
+    public static GLFWIMEStatusCallback glfwSetIMEStatusCallback(@NativeType("GLFWwindow *") long window, @NativeType("GLFWimestatusfun") @Nullable GLFWIMEStatusCallbackI cbfun) {
+        GLFWIMEStatusCallback lastCallback = mGLFWIMEStatusCallback;
+        if (cbfun == null) mGLFWIMEStatusCallback = null;
+        else mGLFWIMEStatusCallback = GLFWIMEStatusCallback.create(cbfun);
+
+        return lastCallback;
+    }
+    public static GLFWPreeditCandidateCallback glfwSetPreeditCandidateCallback(@NativeType("GLFWwindow *") long window, @NativeType("GLFWpreeditcandidatefun") @Nullable GLFWPreeditCandidateCallbackI cbfun) {
+        GLFWPreeditCandidateCallback lastCallback = mGLFWPreeditCandidateCallback;
+        if (cbfun == null) mGLFWPreeditCandidateCallback = null;
+        else mGLFWPreeditCandidateCallback = GLFWPreeditCandidateCallback.create(cbfun);
+
+        return lastCallback;
+    }
+
     public static GLFWWindowSizeCallback glfwSetWindowSizeCallback(@NativeType("GLFWwindow *") long window, @Nullable @NativeType("GLFWwindowsizefun") GLFWWindowSizeCallbackI cbfun) {
         GLFWWindowSizeCallback lastCallback = mGLFWWindowSizeCallback;
         if (cbfun == null) mGLFWWindowSizeCallback = null;
@@ -835,6 +864,10 @@ public class GLFW
 
     public static int glfwGetPlatform() {
         return GLFW_PLATFORM_X11;
+    }
+
+    public static boolean glfwPlatformSupported(int platform) {
+        return platform == GLFW_PLATFORM_X11;
     }
 
     @NativeType("GLFWwindow *")
@@ -900,8 +933,6 @@ public class GLFW
     }
 
     public static int glfwGetWindowAttrib(@NativeType("GLFWwindow *") long window, int attrib) {
-        if (attrib == GLFW_CONTEXT_VERSION_MAJOR) return GLFW_VERSION_MAJOR;
-        if (attrib == GLFW_CONTEXT_VERSION_MINOR) return GLFW_VERSION_MINOR;
         return internalGetWindow(window).windowAttribs.getOrDefault(attrib, 0);
     }
 
@@ -1012,9 +1043,32 @@ public class GLFW
         win.width = mGLFWWindowWidth;
         win.height = mGLFWWindowHeight;
         win.title = title;
+        win.windowAttribs.put(GLFW_RESIZABLE, GLFW_FALSE);
+        // I don't understand why Minecraft doesn't set this itself or why it crashes trying to read
+        // it before set when it controls the cursor status...
+        win.inputModes.put(GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        win.inputModes.put(GLFW_STICKY_KEYS, GLFW_FALSE); // TODO: Fix glfwGetKeyName() to support this
+        win.inputModes.put(GLFW_STICKY_MOUSE_BUTTONS, GLFW_FALSE); // TODO: Fix glfwGetMouseButton() to support this
+        win.inputModes.put(GLFW_IME, GLFW_FALSE);
 
-        win.windowAttribs.put(GLFW_HOVERED, 1);
-        win.windowAttribs.put(GLFW_VISIBLE, 1);
+        // Set the Open GL version for context because Forge and derivatives ask for it
+        // Default on 3.3 because mod compat
+        int glMajor = 3;
+        int glMinor = 3;
+        // Custom defaults for specific renderers
+        if (System.getenv("POJAV_RENDERER").equals("vulkan_zink")) {
+            glMajor = 4;
+            glMinor = 6;
+        } else if (System.getenv("POJAV_RENDERER").equals("gallium_virgl")) {
+            glMajor = 4;
+            glMinor = 3;
+        } else if (System.getenv("POJAV_RENDERER").equals("opengles3")) {
+            glMajor = 4;
+            glMinor = 0;
+        }
+        
+        win.windowAttribs.put(GLFW_CONTEXT_VERSION_MAJOR, glMajor);
+        win.windowAttribs.put(GLFW_CONTEXT_VERSION_MINOR, glMinor);
 
         mGLFWWindowMap.put(ptr, win);
         mainContext = ptr;
@@ -1041,6 +1095,9 @@ public class GLFW
         nglfwSetShowingWindow(mGLFWWindowMap.size() == 0 ? 0 : mGLFWWindowMap.keyAt(mGLFWWindowMap.size() - 1));
     }
 
+    public static String glfwGetWindowTitle(long window) {
+        return internalGetWindow(window).title.toString();
+    }
     public static void glfwDefaultWindowHints() {
         mGLFWWindowVisibleOnCreation = true;
     }
@@ -1179,6 +1236,7 @@ public class GLFW
     }
 
     public static int glfwGetKey(@NativeType("GLFWwindow *") long window, int key) {
+        if (key == GLFW_KEY_LAST) return GLFW_KEY_LAST;
         return keyDownBuffer.get(Math.max(0, key-31));
     }
 
@@ -1426,7 +1484,8 @@ public class GLFW
     public static boolean glfwExtensionSupported(@NativeType("char const *") CharSequence ext) {
         //return Arrays.stream(glGetString(GL_EXTENSIONS).split(" ")).anyMatch(ext::equals);
         // Fast path, but will return true if one has the same prefix
-        return glGetString(GL_EXTENSIONS).contains(ext);
+        String string = glGetString(GL_EXTENSIONS);
+        return string != null && string.contains(ext);
     }
 
     /**

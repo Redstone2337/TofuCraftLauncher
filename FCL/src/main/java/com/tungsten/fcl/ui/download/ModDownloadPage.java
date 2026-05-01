@@ -9,13 +9,16 @@ import com.tungsten.fcl.R;
 import com.tungsten.fcl.game.LocalizedRemoteModRepository;
 import com.tungsten.fcl.setting.Profile;
 import com.tungsten.fcl.setting.Profiles;
+import com.tungsten.fcl.ui.download.common.DownloadPage;
 import com.tungsten.fcl.util.AndroidUtils;
 import com.tungsten.fclcore.mod.ModLoaderType;
 import com.tungsten.fclcore.mod.ModManager;
 import com.tungsten.fclcore.mod.RemoteModRepository;
 import com.tungsten.fclcore.mod.curse.CurseForgeRemoteModRepository;
 import com.tungsten.fclcore.mod.modrinth.ModrinthRemoteModRepository;
+import com.tungsten.fcllibrary.component.view.FCLImageView;
 import com.tungsten.fcllibrary.component.view.FCLUILayout;
+import com.tungsten.fcllibrary.util.LocaleUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +36,18 @@ public class ModDownloadPage extends DownloadPage {
         downloadSource.set(context.getString(R.string.mods_modrinth));
 
         create();
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        if (LocaleUtils.isChinese(getContext())) {
+            FCLImageView translate = findViewById(R.id.translate);
+            translate.setVisibility(View.VISIBLE);
+            translate.setOnClickListener(v -> {
+                showTranslationDialog();
+            });
+        }
     }
 
     @Override

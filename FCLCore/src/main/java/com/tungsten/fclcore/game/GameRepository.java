@@ -17,8 +17,6 @@
  */
 package com.tungsten.fclcore.game;
 
-import com.tungsten.fclauncher.bridge.FCLBridge;
-import com.tungsten.fclauncher.utils.FCLPath;
 import com.tungsten.fclcore.task.Task;
 
 import java.io.File;
@@ -147,6 +145,8 @@ public interface GameRepository extends VersionProvider {
         return getGameVersion(getVersion(versionId));
     }
 
+    Path getModsDirectory(String id);
+
     /**
      * Get minecraft jar
      *
@@ -237,11 +237,6 @@ public interface GameRepository extends VersionProvider {
 
     default Set<String> getClasspath(Version version) {
         Set<String> classpath = new LinkedHashSet<>();
-        if (FCLBridge.BACKEND_IS_BOAT) {
-            classpath.add(FCLPath.LWJGL_DIR + "-boat/lwjgl.jar");
-        } else {
-            classpath.add(FCLPath.LWJGL_DIR + "/lwjgl.jar");
-        }
         for (Library library : version.getLibraries())
             if (library.appliesToCurrentEnvironment() && !library.isNative()) {
                 File f = getLibraryFile(version, library);

@@ -5,21 +5,29 @@ import static com.tungsten.fcl.setting.ConfigHolder.config;
 import static com.tungsten.fclcore.util.Lang.thread;
 import static com.tungsten.fclcore.util.Logging.LOG;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
+import android.provider.Settings;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
+import android.widget.SeekBar;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.palette.graphics.Palette;
 
 import com.tungsten.fcl.R;
@@ -30,7 +38,6 @@ import com.tungsten.fcl.util.AndroidUtils;
 import com.tungsten.fcl.util.FXUtils;
 import com.tungsten.fcl.util.RequestCodes;
 import com.tungsten.fclauncher.utils.FCLPath;
-import com.tungsten.fclcore.fakefx.beans.binding.Bindings;
 import com.tungsten.fclcore.task.FetchTask;
 import com.tungsten.fclcore.task.Schedulers;
 import com.tungsten.fclcore.task.Task;
@@ -47,10 +54,8 @@ import com.tungsten.fcllibrary.component.ui.FCLCommonPage;
 import com.tungsten.fcllibrary.component.view.FCLButton;
 import com.tungsten.fcllibrary.component.view.FCLCheckBox;
 import com.tungsten.fcllibrary.component.view.FCLNumberSeekBar;
-import com.tungsten.fcllibrary.component.view.FCLSeekBar;
 import com.tungsten.fcllibrary.component.view.FCLSpinner;
 import com.tungsten.fcllibrary.component.view.FCLSwitch;
-import com.tungsten.fcllibrary.component.view.FCLTextView;
 import com.tungsten.fcllibrary.component.view.FCLUILayout;
 import com.tungsten.fcllibrary.util.LocaleUtils;
 
@@ -58,12 +63,13 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.logging.Level;
 
-public class LauncherSettingPage extends FCLCommonPage implements View.OnClickListener, AdapterView.OnItemSelectedListener, CompoundButton.OnCheckedChangeListener {
+public class LauncherSettingPage extends FCLCommonPage implements View.OnClickListener, AdapterView.OnItemSelectedListener, CompoundButton.OnCheckedChangeListener, SeekBar.OnSeekBarChangeListener {
 
     public static final long ONE_DAY = 1000 * 60 * 60 * 24;
 
@@ -71,29 +77,42 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
     private FCLButton checkUpdate;
     private FCLButton clearCache;
     private FCLButton exportLog;
+    private FCLButton requestAudioRecord;
+    private FCLSwitch autoExitLauncher;
+    private FCLSpinner<String> themeMode;
     private FCLButton theme;
     private FCLButton theme2;
+    private FCLButton theme2Dark;
     private FCLButton ltBackground;
     private FCLButton dkBackground;
+    private FCLButton liveBackground;
     private FCLButton cursor;
     private FCLButton menuIcon;
     private FCLButton resetTheme;
     private FCLButton resetTheme2;
+    private FCLButton resetTheme2Dark;
     private FCLButton fetchBackgroundColor;
     private FCLButton fetchBackgroundColor2;
+    private FCLButton fetchBackgroundColor2Dark;
     private FCLButton resetLtBackground;
     private FCLButton resetDkBackground;
+    private FCLButton resetLiveBackground;
     private FCLButton resetCursor;
     private FCLButton resetMenuIcon;
     private FCLSwitch ignoreNotch;
     private FCLSwitch closeSkinModel;
+    private FCLNumberSeekBar videoBackgroundVolume;
     private FCLNumberSeekBar animationSpeed;
     private FCLNumberSeekBar vibrationDuration;
+    private FCLSwitch disableFullscreenInput;
     private FCLCheckBox autoSource;
     private FCLSpinner<String> versionList;
     private FCLSpinner<String> downloadType;
     private FCLCheckBox autoThreads;
     private FCLNumberSeekBar threads;
+
+    private boolean isFirst = true;
+    private SharedPreferences sharedPreferences;
 
     public LauncherSettingPage(Context context, int id, FCLUILayout parent, int resId) {
         super(context, id, parent, resId);
@@ -102,28 +121,39 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
     @Override
     public void onCreate() {
         super.onCreate();
+        sharedPreferences = getActivity().getSharedPreferences("launcher", MODE_PRIVATE);
         language = findViewById(R.id.language);
         checkUpdate = findViewById(R.id.check_update);
         clearCache = findViewById(R.id.clear_cache);
         exportLog = findViewById(R.id.export_log);
+        requestAudioRecord = findViewById(R.id.request_audio_record);
+        autoExitLauncher = findViewById(R.id.auto_exit_launcher);
+        themeMode = findViewById(R.id.theme_mode);
         theme = findViewById(R.id.theme);
         theme2 = findViewById(R.id.theme2);
+        theme2Dark = findViewById(R.id.theme2_dark);
         ltBackground = findViewById(R.id.background_lt);
         dkBackground = findViewById(R.id.background_dk);
+        liveBackground = findViewById(R.id.background_live);
         cursor = findViewById(R.id.cursor);
         menuIcon = findViewById(R.id.menu_icon);
         resetTheme = findViewById(R.id.reset_theme);
         resetTheme2 = findViewById(R.id.reset_theme2);
+        resetTheme2Dark = findViewById(R.id.reset_theme2_dark);
         fetchBackgroundColor = findViewById(R.id.fetch_background_color);
         fetchBackgroundColor2 = findViewById(R.id.fetch_background_color2);
+        fetchBackgroundColor2Dark = findViewById(R.id.fetch_background_color2_dark);
         resetLtBackground = findViewById(R.id.reset_background_lt);
         resetDkBackground = findViewById(R.id.reset_background_dk);
+        resetLiveBackground = findViewById(R.id.reset_background_live);
         resetCursor = findViewById(R.id.reset_cursor);
         resetMenuIcon = findViewById(R.id.reset_menu_icon);
         ignoreNotch = findViewById(R.id.ignore_notch);
         closeSkinModel = findViewById(R.id.close_skin_model);
+        videoBackgroundVolume = findViewById(R.id.video_background_volume);
         animationSpeed = findViewById(R.id.animation_speed);
         vibrationDuration = findViewById(R.id.vibration_duration);
+        disableFullscreenInput = findViewById(R.id.disable_fullscreen_input);
         autoSource = findViewById(R.id.check_auto_source);
         versionList = findViewById(R.id.source_auto);
         downloadType = findViewById(R.id.source);
@@ -133,10 +163,13 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
         checkUpdate.setOnClickListener(this);
         clearCache.setOnClickListener(this);
         exportLog.setOnClickListener(this);
+        requestAudioRecord.setOnClickListener(this);
         theme.setOnClickListener(this);
         theme2.setOnClickListener(this);
+        theme2Dark.setOnClickListener(this);
         ltBackground.setOnClickListener(this);
         dkBackground.setOnClickListener(this);
+        liveBackground.setOnClickListener(this);
         cursor.setOnClickListener(this);
         menuIcon.setOnClickListener(this);
         resetTheme.setOnClickListener(this);
@@ -145,15 +178,18 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
         fetchBackgroundColor2.setOnClickListener(this);
         resetLtBackground.setOnClickListener(this);
         resetDkBackground.setOnClickListener(this);
+        resetLiveBackground.setOnClickListener(this);
         resetCursor.setOnClickListener(this);
         resetMenuIcon.setOnClickListener(this);
 
         theme.setSelected(true);
         theme2.setSelected(true);
+        theme2Dark.setSelected(true);
         resetTheme.setSelected(true);
         resetTheme2.setSelected(true);
         fetchBackgroundColor.setSelected(true);
         fetchBackgroundColor2.setSelected(true);
+        fetchBackgroundColor2Dark.setSelected(true);
 
         ArrayList<String> languageList = new ArrayList<>();
         languageList.add(getContext().getString(R.string.settings_launcher_language_system));
@@ -171,23 +207,40 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
         language.setSelection(LocaleUtils.getLanguage(getContext()));
         language.setOnItemSelectedListener(this);
 
+        ArrayList<String> themeModeList = new ArrayList<>();
+        themeModeList.add(getContext().getString(R.string.settings_launcher_theme_mode_follow));
+        themeModeList.add(getContext().getString(R.string.settings_launcher_theme_mode_light));
+        themeModeList.add(getContext().getString(R.string.settings_launcher_theme_mode_dark));
+        ArrayAdapter<String> themeModeAdapter = new ArrayAdapter<>(getContext(), R.layout.item_spinner_auto_tint, themeModeList);
+        themeModeAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
+        themeMode.setAdapter(themeModeAdapter);
+        themeMode.setSelection(sharedPreferences.getInt("themeMode", 0));
+        themeMode.setOnItemSelectedListener(this);
+
+        autoExitLauncher.setChecked(sharedPreferences.getBoolean("autoExitLauncher", false));
+        autoExitLauncher.setOnCheckedChangeListener(this);
+
         ignoreNotch.setChecked(ThemeEngine.getInstance().getTheme().isFullscreen());
         ignoreNotch.setOnCheckedChangeListener(this);
 
         closeSkinModel.setChecked(ThemeEngine.getInstance().getTheme().isCloseSkinModel());
         closeSkinModel.setOnCheckedChangeListener(this);
 
+        videoBackgroundVolume.setProgress(sharedPreferences.getInt("videoBackgroundVolume", 100));
+        videoBackgroundVolume.setOnSeekBarChangeListener(this);
+
         animationSpeed.setProgress(ThemeEngine.getInstance().getTheme().getAnimationSpeed());
         animationSpeed.addProgressListener();
         animationSpeed.progressProperty().bindBidirectional(ThemeEngine.getInstance().getTheme().animationSpeedProperty());
         ThemeEngine.getInstance().getTheme().animationSpeedProperty().addListener(observable -> Theme.saveTheme(getContext(), ThemeEngine.getInstance().getTheme()));
 
-        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("launcher", MODE_PRIVATE);
         vibrationDuration.setProgress(sharedPreferences.getInt("vibrationDuration", 100));
         vibrationDuration.addProgressListener();
         vibrationDuration.progressProperty().addListener(observable -> {
             sharedPreferences.edit().putInt("vibrationDuration", vibrationDuration.getProgress()).apply();
         });
+        disableFullscreenInput.setChecked(sharedPreferences.getBoolean("disableFullscreenInput", true));
+        disableFullscreenInput.setOnCheckedChangeListener(this);
 
         autoSource.setChecked(config().autoChooseDownloadTypeProperty().get());
         autoSource.addCheckedChangeListener();
@@ -305,6 +358,22 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
                 });
             });
         }
+        if (v == requestAudioRecord) {
+            if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO)
+                    != PackageManager.PERMISSION_GRANTED) {
+                if (!ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.getInstance(), Manifest.permission.RECORD_AUDIO)) {
+                    MainActivity.getInstance().permissionResultLauncher.launch(Manifest.permission.RECORD_AUDIO);
+                } else {
+                    try {
+                        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                        Uri uri = Uri.fromParts("package", getContext().getPackageName(), null);
+                        intent.setData(uri);
+                        getContext().startActivity(intent);
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+        }
         if (v == theme) {
             FCLColorPickerDialog dialog = new FCLColorPickerDialog(getContext(), ThemeEngine.getInstance().getTheme().getColor(), new FCLColorPickerDialog.Listener() {
                 @Override
@@ -325,7 +394,7 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
             dialog.show();
         }
         if (v == theme2) {
-            FCLColorPickerDialog dialog = new FCLColorPickerDialog(getContext(), ThemeEngine.getInstance().getTheme().getColor2(), new FCLColorPickerDialog.Listener() {
+            FCLColorPickerDialog dialog = new FCLColorPickerDialog(getContext(), ThemeEngine.getInstance().getTheme()._getColor2(), new FCLColorPickerDialog.Listener() {
                 @Override
                 public void onColorChanged(int color) {
                     ThemeEngine.getInstance().applyColor2(color);
@@ -339,6 +408,25 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
                 @Override
                 public void onNegative(int initColor) {
                     ThemeEngine.getInstance().applyColor2(initColor);
+                }
+            });
+            dialog.show();
+        }
+        if (v == theme2Dark) {
+            FCLColorPickerDialog dialog = new FCLColorPickerDialog(getContext(), ThemeEngine.getInstance().getTheme().getColor2Dark(), new FCLColorPickerDialog.Listener() {
+                @Override
+                public void onColorChanged(int color) {
+                    ThemeEngine.getInstance().applyColor2Dark(color);
+                }
+
+                @Override
+                public void onPositive(int destColor) {
+                    ThemeEngine.getInstance().applyAndSave2Dark(getContext(), destColor);
+                }
+
+                @Override
+                public void onNegative(int initColor) {
+                    ThemeEngine.getInstance().applyColor2Dark(initColor);
                 }
             });
             dialog.show();
@@ -363,22 +451,53 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
                 }
             }));
         }
+        if (v == liveBackground) {
+            FileBrowser.Builder builder = new FileBrowser.Builder(getContext());
+            builder.setLibMode(LibMode.FILE_CHOOSER);
+            builder.setSelectionMode(SelectionMode.SINGLE_SELECTION);
+            ArrayList<String> suffix = new ArrayList<>();
+            suffix.add(".mp4");
+            builder.setSuffix(suffix);
+            builder.create().browse(getActivity(), RequestCodes.SELECT_LAUNCHER_BACKGROUND_CODE, ((requestCode, resultCode, data) -> {
+                if (requestCode == RequestCodes.SELECT_LAUNCHER_BACKGROUND_CODE && resultCode == Activity.RESULT_OK && data != null) {
+                    String path = FileBrowser.getSelectedFiles(data).get(0);
+                    Uri uri = Uri.parse(path);
+                    if (AndroidUtils.isDocUri(uri)) {
+                        AndroidUtils.copyFile(getActivity(), uri, new File(FCLPath.LIVE_BACKGROUND_PATH));
+                    } else {
+                        try {
+                            FileUtils.copyFile(new File(path), new File(FCLPath.LIVE_BACKGROUND_PATH));
+                        } catch (IOException ignore) {
+                        }
+                    }
+                    MainActivity.getInstance().setupLiveBackground();
+                }
+            }));
+        }
         if (v == cursor) {
             FileBrowser.Builder builder = new FileBrowser.Builder(getContext());
             builder.setLibMode(LibMode.FILE_CHOOSER);
             builder.setSelectionMode(SelectionMode.SINGLE_SELECTION);
             ArrayList<String> suffix = new ArrayList<>();
             suffix.add(".png");
+            suffix.add(".gif");
             builder.setSuffix(suffix);
             builder.create().browse(getActivity(), RequestCodes.SELECT_CURSOR_CODE, ((requestCode, resultCode, data) -> {
                 if (requestCode == RequestCodes.SELECT_CURSOR_CODE && resultCode == Activity.RESULT_OK && data != null) {
                     String path = FileBrowser.getSelectedFiles(data).get(0);
                     Uri uri = Uri.parse(path);
+                    String type = AndroidUtils.getFileName(getContext(), uri);
+                    if (type.endsWith(".gif")) {
+                        type = "gif";
+                    } else {
+                        type = "png";
+                    }
+                    deleteCursorFile();
                     if (AndroidUtils.isDocUri(uri)) {
-                        AndroidUtils.copyFile(getActivity(), uri, new File(FCLPath.FILES_DIR, "cursor.png"));
+                        AndroidUtils.copyFile(getActivity(), uri, new File(FCLPath.FILES_DIR, "cursor." + type));
                     } else {
                         try {
-                            FileUtils.copyFile(new File(path), new File(FCLPath.FILES_DIR, "cursor.png"));
+                            FileUtils.copyFile(new File(path), new File(FCLPath.FILES_DIR, "cursor." + type));
                         } catch (IOException ignore) {
                         }
                     }
@@ -397,16 +516,13 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
                 if (requestCode == RequestCodes.SELECT_CURSOR_CODE && resultCode == Activity.RESULT_OK && data != null) {
                     String path = FileBrowser.getSelectedFiles(data).get(0);
                     Uri uri = Uri.parse(path);
-                    String type = getContext().getContentResolver().getType(uri);
-                    if (type != null) {
-                        if (type.contains("png")) {
-                            type = "png";
-                        } else if (type.contains("gif")) {
-                            type = "gif";
-                        }
+                    String type = AndroidUtils.getFileName(getContext(), uri);
+                    if (type.endsWith(".gif")) {
+                        type = "gif";
                     } else {
                         type = "png";
                     }
+                    deleteMenuIconFile();
                     if (AndroidUtils.isDocUri(uri)) {
                         AndroidUtils.copyFile(getActivity(), uri, new File(FCLPath.FILES_DIR, "menu_icon." + type));
                     } else {
@@ -424,7 +540,17 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
         if (v == resetTheme2) {
             ThemeEngine.getInstance().applyAndSave2(getContext(), Color.parseColor("#000000"));
         }
-        if (v == fetchBackgroundColor || v == fetchBackgroundColor2) {
+        if (v == resetTheme2Dark) {
+            ThemeEngine.getInstance().applyAndSave2Dark(getContext(), Color.parseColor("#000000"));
+        }
+        if (v == resetLiveBackground) {
+            try {
+                FileUtils.forceDelete(new File(FCLPath.LIVE_BACKGROUND_PATH));
+                MainActivity.getInstance().setupLiveBackground();
+            } catch (IOException ignore) {
+            }
+        }
+        if (v == fetchBackgroundColor || v == fetchBackgroundColor2 || v == fetchBackgroundColor2Dark) {
             boolean isDarkMode = (getContext().getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
 
             Bitmap bitmap = (isDarkMode ?
@@ -441,8 +567,10 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
                         color = palette.getLightVibrantColor(dominantColor);
                     }
                     ThemeEngine.getInstance().applyAndSave(getContext(), color);
-                } else {
+                } else if (v == fetchBackgroundColor2) {
                     ThemeEngine.getInstance().applyAndSave2(getContext(), palette.getVibrantColor(dominantColor));
+                } else {
+                    ThemeEngine.getInstance().applyAndSave2Dark(getContext(), palette.getVibrantColor(dominantColor));
                 }
             }
         }
@@ -463,11 +591,28 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
             }).start();
         }
         if (v == resetCursor) {
-            new File(FCLPath.FILES_DIR, "cursor.png").delete();
+            deleteCursorFile();
         }
         if (v == resetMenuIcon) {
-            new File(FCLPath.FILES_DIR, "menu_icon.png").delete();
-            new File(FCLPath.FILES_DIR, "menu_icon.gif").delete();
+            deleteMenuIconFile();
+        }
+    }
+
+    private static void deleteMenuIconFile() {
+        try {
+            Files.deleteIfExists(Paths.get(FCLPath.FILES_DIR, "menu_icon.png"));
+            Files.deleteIfExists(Paths.get(FCLPath.FILES_DIR, "menu_icon.gif"));
+        } catch (IOException e) {
+            LOG.log(Level.WARNING, "Failed to delete menu icon", e);
+        }
+    }
+
+    private void deleteCursorFile() {
+        try {
+            Files.deleteIfExists(Paths.get(FCLPath.FILES_DIR, "cursor.png"));
+            Files.deleteIfExists(Paths.get(FCLPath.FILES_DIR, "cursor.gif"));
+        } catch (IOException e) {
+            LOG.log(Level.WARNING, "Failed to delete cursor", e);
         }
     }
 
@@ -476,6 +621,25 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
         if (parent == language) {
             LocaleUtils.changeLanguage(getContext(), position);
             LocaleUtils.setLanguage(getContext());
+            if (!isFirst) {
+                new FCLAlertDialog.Builder(getContext())
+                        .setAlertLevel(FCLAlertDialog.AlertLevel.INFO)
+                        .setMessage(getContext().getString(R.string.message_warn_restart_after_change))
+                        .setNegativeButton(getContext().getString(com.tungsten.fcllibrary.R.string.dialog_positive), () -> {
+
+                        })
+                        .create()
+                        .show();
+            } else {
+                isFirst = false;
+            }
+        } else if (parent == themeMode) {
+            sharedPreferences.edit().putInt("themeMode", position).apply();
+            int mode = AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
+            if (position != 0) {
+                mode = position == 1 ? AppCompatDelegate.MODE_NIGHT_NO : AppCompatDelegate.MODE_NIGHT_YES;
+            }
+            AppCompatDelegate.setDefaultNightMode(mode);
         }
     }
 
@@ -486,12 +650,35 @@ public class LauncherSettingPage extends FCLCommonPage implements View.OnClickLi
 
     @Override
     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+        SharedPreferences sharedPreferences = getActivity().getSharedPreferences("launcher", MODE_PRIVATE);
         if (buttonView == ignoreNotch) {
             ThemeEngine.getInstance().applyAndSave(getContext(), getActivity().getWindow(), isChecked);
             getActivity().getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN);
         } else if (buttonView == closeSkinModel) {
             ThemeEngine.getInstance().getTheme().setiIgnoreSkinContainer(isChecked);
             Theme.saveTheme(getContext(), ThemeEngine.getInstance().getTheme());
+        } else if (buttonView == disableFullscreenInput) {
+            sharedPreferences.edit().putBoolean("disableFullscreenInput", isChecked).apply();
+        } else if (buttonView == autoExitLauncher) {
+            sharedPreferences.edit().putBoolean("autoExitLauncher", isChecked).apply();
         }
+    }
+
+    @Override
+    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+        if (seekBar == videoBackgroundVolume) {
+            sharedPreferences.edit().putInt("videoBackgroundVolume", progress).apply();
+            MainActivity.getInstance().setLiveBackgroundVolume();
+        }
+    }
+
+    @Override
+    public void onStartTrackingTouch(SeekBar seekBar) {
+
+    }
+
+    @Override
+    public void onStopTrackingTouch(SeekBar seekBar) {
+
     }
 }

@@ -28,15 +28,9 @@ class ManagePageManager(
     var profile: Profile? = null
     var version: String? = null
 
-    private lateinit var managePage: ManagePage
-    private val versionSettingPage: VersionSettingPage by lazy {
-        VersionSettingPage(
-            context,
-            PAGE_ID_MANAGE_SETTING,
-            parent,
-            R.layout.page_version_setting,
-            false
-        )
+    private lateinit var versionSettingPage: VersionSettingPage
+    private val managePage: ManagePage by lazy {
+        ManagePage(context, PAGE_ID_MANAGE_MANAGE, parent, R.layout.page_manage_version)
     }
     private val installerListPage: InstallerListPage by lazy {
         InstallerListPage(
@@ -63,25 +57,41 @@ class ManagePageManager(
         )
     }
 
+    private var versionLoaded = false
+    private lateinit var runnable: () -> Unit
+
     init {
         instance = this
     }
 
     override fun init(listener: UIListener?) {
-        managePage =
-            ManagePage(context, PAGE_ID_MANAGE_MANAGE, parent, R.layout.page_manage_version)
+        versionSettingPage = VersionSettingPage(
+            context,
+            PAGE_ID_MANAGE_SETTING,
+            parent,
+            R.layout.page_version_setting,
+            false
+        )
         listener?.onLoad()
     }
 
     override fun getAllPages(): ArrayList<FCLCommonPage> {
         return ArrayList<FCLCommonPage>().apply {
-            add(managePage)
+            add(versionSettingPage)
         }
+    }
+
+    override fun switchPage(id: Int) {
+        runnable = {
+            super.switchPage(id)
+        }
+        if (versionLoaded)
+            runnable()
     }
 
     override fun createPageById(id: Int): FCLCommonPage? {
         val page: FCLCommonPage? = when (id) {
-            PAGE_ID_MANAGE_SETTING -> versionSettingPage
+            PAGE_ID_MANAGE_MANAGE -> managePage
             PAGE_ID_MANAGE_INSTALL -> installerListPage
             PAGE_ID_MANAGE_MOD -> modListPage
             PAGE_ID_MANAGE_WORLD -> worldListPage
@@ -99,6 +109,10 @@ class ManagePageManager(
         this.version = version
         allPages.forEach {
             (it as VersionLoadable).loadVersion(profile, version)
+        }
+        if (!versionLoaded) {
+            versionLoaded = true
+            runnable()
         }
     }
 

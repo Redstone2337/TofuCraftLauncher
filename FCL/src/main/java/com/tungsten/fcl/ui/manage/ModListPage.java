@@ -8,12 +8,17 @@ import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.net.Uri;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
-import android.widget.ListView;
+import android.widget.CompoundButton;
 import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.Toast;
 
-import androidx.appcompat.widget.LinearLayoutCompat;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.tungsten.fcl.R;
 import com.tungsten.fcl.activity.MainActivity;
@@ -49,13 +54,12 @@ import com.tungsten.fcllibrary.browser.options.SelectionMode;
 import com.tungsten.fcllibrary.component.dialog.FCLAlertDialog;
 import com.tungsten.fcllibrary.component.ui.FCLCommonPage;
 import com.tungsten.fcllibrary.component.view.FCLButton;
+import com.tungsten.fcllibrary.component.view.FCLCheckBox;
 import com.tungsten.fcllibrary.component.view.FCLEditText;
 import com.tungsten.fcllibrary.component.view.FCLLinearLayout;
 import com.tungsten.fcllibrary.component.view.FCLProgressBar;
 import com.tungsten.fcllibrary.component.view.FCLTextView;
 import com.tungsten.fcllibrary.component.view.FCLUILayout;
-
-import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -66,6 +70,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import java.util.logging.Level;
@@ -85,10 +90,9 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
     private boolean isSearching = false;
 
     private FCLTextView warningText;
-    private LinearLayoutCompat left;
-    private RelativeLayout right;
+    private ScrollView left;
+    private CoordinatorLayout right;
     private FCLEditText searchBar;
-    private FCLButton searchButton;
     private FCLLinearLayout normalGroup;
     private FCLLinearLayout selectedGroup;
     private FCLButton addButton;
@@ -97,16 +101,21 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
     private FCLButton refreshButton;
     private FCLButton deleteButton;
     private FCLButton selectAllButton;
+    private FCLButton selectInvertButton;
     private FCLButton cancelButton;
     private FCLProgressBar progressBar;
-    private ListView listView;
+    private RecyclerView recyclerView;
+
+    private FCLCheckBox enabled;
+    private FCLCheckBox disabled;
 
     private final LocalModListAdapter adapter;
 
     public ModListPage(Context context, int id, FCLUILayout parent, int resId) {
         super(context, id, parent, resId);
         adapter = new LocalModListAdapter(getContext(), this);
-        listView.setAdapter(adapter);
+        recyclerView.setAdapter(adapter);
+        recyclerView.setLayoutManager(new LinearLayoutManager(context));
         Bindings.bindContent(adapter.listProperty(), itemsProperty);
 
         adapter.selectedItemsProperty().addListener((InvalidationListener) observable -> switchLayout(adapter.selectedItemsProperty().getSize() > 0));
@@ -121,7 +130,6 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
         left = findViewById(R.id.left);
         right = findViewById(R.id.right);
         searchBar = findViewById(R.id.search_filter);
-        searchButton = findViewById(R.id.search);
         normalGroup = findViewById(R.id.normal_layout);
         selectedGroup = findViewById(R.id.selected_layout);
         addButton = findViewById(R.id.add);
@@ -130,25 +138,47 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
         refreshButton = findViewById(R.id.refresh);
         deleteButton = findViewById(R.id.delete);
         selectAllButton = findViewById(R.id.select_all);
+        selectInvertButton = findViewById(R.id.select_invert);
         cancelButton = findViewById(R.id.cancel);
         progressBar = findViewById(R.id.progress);
-        listView = findViewById(R.id.list);
+        recyclerView = findViewById(R.id.list);
+        enabled = findViewById(R.id.enabled);
+        disabled = findViewById(R.id.disabled);
 
-        searchButton.setOnClickListener(this);
         addButton.setOnClickListener(this);
         checkUpdateAllButton.setOnClickListener(this);
         checkUpdateButton.setOnClickListener(this);
         refreshButton.setOnClickListener(this);
         deleteButton.setOnClickListener(this);
         selectAllButton.setOnClickListener(this);
+        selectInvertButton.setOnClickListener(this);
         cancelButton.setOnClickListener(this);
+        CompoundButton.OnCheckedChangeListener listener = (compoundButton, b) -> {
+            refresh();
+        };
+        enabled.setOnCheckedChangeListener(listener);
+        disabled.setOnCheckedChangeListener(listener);
+
+        searchBar.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                search();
+            }
+        });
     }
 
     @Override
     public void onClick(View v) {
-        if (v == searchButton) {
-            search();
-        }
         if (v == addButton) {
             add();
         }
@@ -174,6 +204,9 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
         }
         if (v == selectAllButton) {
             adapter.selectAll();
+        }
+        if (v == selectInvertButton) {
+            adapter.selectInvert();
         }
         if (v == cancelButton) {
             adapter.selectedItemsProperty().clear();
@@ -218,27 +251,27 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
             if (loading) {
                 cancelSearch();
                 searchBar.setEnabled(false);
-                searchButton.setEnabled(false);
                 addButton.setEnabled(false);
                 checkUpdateAllButton.setEnabled(false);
                 checkUpdateButton.setEnabled(false);
                 refreshButton.setEnabled(false);
                 deleteButton.setEnabled(false);
                 selectAllButton.setEnabled(false);
+                selectInvertButton.setEnabled(false);
                 cancelButton.setEnabled(false);
-                listView.setVisibility(View.GONE);
+                recyclerView.setVisibility(View.GONE);
                 progressBar.setVisibility(View.VISIBLE);
             } else {
                 searchBar.setEnabled(true);
-                searchButton.setEnabled(true);
                 addButton.setEnabled(true);
                 checkUpdateAllButton.setEnabled(true);
                 checkUpdateButton.setEnabled(true);
                 refreshButton.setEnabled(true);
                 deleteButton.setEnabled(true);
                 selectAllButton.setEnabled(true);
+                selectInvertButton.setEnabled(true);
                 cancelButton.setEnabled(true);
-                listView.setVisibility(View.VISIBLE);
+                recyclerView.setVisibility(View.VISIBLE);
                 progressBar.setVisibility(View.GONE);
                 cancelSearch();
             }
@@ -266,7 +299,7 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
                 synchronized (ModListPage.this) {
                     setLoading(true);
                     modManager.refreshMods();
-                    return new ArrayList<>(modManager.getMods());
+                    return modManager.getMods().stream().map(it -> new ModInfoObject(getContext(), it)).collect(Collectors.toList());
                 }
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -274,11 +307,16 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
         }, Schedulers.defaultScheduler()).whenCompleteAsync((list, exception) -> {
             setLoading(false);
             if (exception == null)
-                itemsProperty.setAll(list.stream().map(it -> new ModInfoObject(getContext(), it)).sorted().collect(Collectors.toList()));
+                try {
+                    itemsProperty.setAll(list.stream().filter(modInfoObject -> {
+                        boolean active = modInfoObject.getModInfo().isActive();
+                        return (enabled.isChecked() && active) || (disabled.isChecked() && !active);
+                    }).collect(Collectors.toList()));
+                } catch (Throwable e) {
+                    LOG.log(Level.SEVERE, "Failed to load local mod list", e);
+                }
             else
                 LOG.log(Level.SEVERE, "Failed to load local mod list", exception);
-
-            System.gc();
         }, Schedulers.androidUIThread());
     }
 
@@ -308,8 +346,7 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
 
                 Task.runAsync(() -> {
                     for (Object obj : res) {
-                        if (obj instanceof File) {
-                            File file = (File) obj;
+                        if (obj instanceof File file) {
                             try {
                                 modManager.addMod(file.toPath());
                                 succeeded.add(file.getName());
@@ -386,6 +423,7 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
                     .whenComplete(Schedulers.androidUIThread(), (result, exception) -> {
                         checkUpdateAllButton.setFocusable(true);
                         checkUpdateButton.setFocusable(true);
+                        if (exception instanceof CancellationException) return;
                         if (exception != null || result == null) {
                             FCLAlertDialog.Builder builder = new FCLAlertDialog.Builder(getContext());
                             builder.setCancelable(false);
@@ -477,14 +515,14 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
 
             // Do we need to search in the background thread?
             for (ModInfoObject item : itemsProperty.get()) {
-                if (predicate.test(item.getModInfo().getFileName())) {
+                if (predicate.test(item.getModInfo().getFileName()) || (item.getRemoteMod() != null && predicate.test(item.getRemoteMod().getTitle()))) {
                     adapter.listProperty().add(item);
                 }
             }
         }
     }
 
-    public static class ModInfoObject implements Comparable<ModInfoObject> {
+    public static class ModInfoObject {
         private final BooleanProperty active;
         private final LocalModFile localModFile;
         private final String title;
@@ -508,7 +546,7 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
                 message.append(", ").append(context.getString(R.string.archive_author)).append(": ").append(localModFile.getAuthors());
             this.message = message.toString();
 
-            this.mod = ModTranslations.MOD.getModById(localModFile.getId());
+            this.mod = ModTranslations.MOD.getMod(localModFile.getId(), localModFile.getName());
         }
 
         public BooleanProperty getActive() {
@@ -529,11 +567,6 @@ public class ModListPage extends FCLCommonPage implements ManageUI.VersionLoadab
 
         public ModTranslations.Mod getMod() {
             return mod;
-        }
-
-        @Override
-        public int compareTo(@NotNull ModInfoObject o) {
-            return localModFile.getFileName().toLowerCase().compareTo(o.localModFile.getFileName().toLowerCase());
         }
 
         public RemoteMod getRemoteMod() {

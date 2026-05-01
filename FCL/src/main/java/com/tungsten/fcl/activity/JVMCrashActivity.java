@@ -4,8 +4,6 @@ import static com.tungsten.fclcore.util.Logging.LOG;
 import static com.tungsten.fclcore.util.Pair.pair;
 
 import android.annotation.SuppressLint;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
@@ -14,7 +12,6 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.ScrollView;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.core.content.FileProvider;
@@ -29,9 +26,8 @@ import com.tungsten.fclcore.util.StringUtils;
 import com.tungsten.fclcore.util.io.FileUtils;
 import com.tungsten.fcllibrary.component.FCLActivity;
 import com.tungsten.fcllibrary.component.view.FCLButton;
-import com.tungsten.fcllibrary.component.view.FCLProgressBar;
 import com.tungsten.fcllibrary.component.view.FCLTextView;
-import com.tungsten.fcllibrary.crash.CrashReporter;
+import com.tungsten.fcllibrary.util.LogSharingUtilsKt;
 
 import java.io.File;
 import java.io.IOException;
@@ -56,14 +52,13 @@ public class JVMCrashActivity extends FCLActivity implements View.OnClickListene
 
     private FCLButton restart;
     private FCLButton close;
-    private FCLButton copy;
+    private FCLButton upload;
     private FCLButton share;
 
     private FCLTextView title;
     private FCLTextView error;
     private FCLTextView hint;
     private ScrollView hintLayout;
-    private FCLProgressBar progressBar;
 
     @SuppressLint("SetTextI18n")
     @Override
@@ -74,19 +69,18 @@ public class JVMCrashActivity extends FCLActivity implements View.OnClickListene
 
         restart = findViewById(R.id.restart);
         close = findViewById(R.id.close);
-        copy = findViewById(R.id.copy);
+        upload = findViewById(R.id.upload);
         share = findViewById(R.id.share);
 
         restart.setOnClickListener(this);
         close.setOnClickListener(this);
-        copy.setOnClickListener(this);
+        upload.setOnClickListener(this);
         share.setOnClickListener(this);
 
         title = findViewById(R.id.title);
         error = findViewById(R.id.error);
         hint = findViewById(R.id.hint);
         hintLayout = findViewById(R.id.hint_layout);
-        progressBar = findViewById(R.id.progress);
 
         game = getIntent().getExtras().getBoolean("isGame");
         exitCode = getIntent().getExtras().getInt("exitCode");
@@ -94,7 +88,8 @@ public class JVMCrashActivity extends FCLActivity implements View.OnClickListene
         renderer = getIntent().getExtras().getString("renderer");
         java = getIntent().getExtras().getString("java");
 
-        title.setText(game ? getString(R.string.game_crash_title) + getString(R.string.game_crash_title_add): getString(R.string.jar_executor_crash_title));
+        title.setText(game ? getString(R.string.game_crash_title) + getString(R.string.game_crash_title_add) : getString(R.string.jar_executor_crash_title));
+
         setLoading(true);
         try {
             init();
@@ -107,15 +102,18 @@ public class JVMCrashActivity extends FCLActivity implements View.OnClickListene
     }
 
     private void setLoading(boolean loading) {
-        Schedulers.androidUIThread().execute(() -> {
-            progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
-            hintLayout.setVisibility(loading ? View.GONE : View.VISIBLE);
-        });
+        Schedulers.androidUIThread().execute(() -> hintLayout.setVisibility(loading ? View.GONE : View.VISIBLE));
     }
 
     private void init() throws IOException {
         String summarize = "Exit Normally, exit code = " + exitCode;
-        List<String> errorLines = Arrays.stream(FileUtils.readText(new File(logPath)).split("\n")).collect(Collectors.toList());
+        String log;
+        if (new File(logPath).length() < 8 * 1024 * 1024) {
+            log = FileUtils.readText(new File(logPath));
+        } else {
+            log = "Log file is too large, please check the log file manually.\n";
+        }
+        List<String> errorLines = Arrays.stream(log.split("\n")).collect(Collectors.toList());
         if (exitCode != 0 && StringUtils.containsOne(errorLines,
                 "Could not create the Java Virtual Machine.",
                 "Error occurred during initialization of VM",
@@ -137,7 +135,7 @@ public class JVMCrashActivity extends FCLActivity implements View.OnClickListene
         errorLines.forEach(it -> error.append(it + "\n"));
 
         if (game) {
-            analyzeCrashReport(FileUtils.readText(new File(logPath)));
+            analyzeCrashReport(log);
         } else {
             setLoading(false);
             hint.setText(getString(R.string.jar_executor_crash_reason));
@@ -266,13 +264,9 @@ public class JVMCrashActivity extends FCLActivity implements View.OnClickListene
             android.os.Process.killProcess(android.os.Process.myPid());
             System.exit(10);
         }
-        if (v == copy) {
-            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            if (clipboard != null) {
-                ClipData clip = ClipData.newPlainText(null, error.getText().toString());
-                clipboard.setPrimaryClip(clip);
-                Toast.makeText(this, com.tungsten.fcllibrary.R.string.crash_reporter_toast, Toast.LENGTH_SHORT).show();
-            }
+        if (v == upload) {
+            String logContent = error.getText().toString();
+            LogSharingUtilsKt.uploadLog(this, logContent);
         }
         if (v == share) {
             try {

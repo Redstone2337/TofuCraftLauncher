@@ -29,7 +29,6 @@ import com.google.gson.JsonSerializer
 import com.google.gson.annotations.JsonAdapter
 import com.mio.JavaManager
 import com.mio.data.Renderer
-import com.mio.manager.RendererManager
 import com.tungsten.fclauncher.utils.FCLPath
 import com.tungsten.fclcore.fakefx.beans.InvalidationListener
 import com.tungsten.fclcore.fakefx.beans.property.BooleanProperty
@@ -74,14 +73,11 @@ class VersionSetting : Cloneable {
             javaProperty.set(java)
         }
 
-    val permSizeProperty: StringProperty = SimpleStringProperty(this, "permSize", "")
-    var permSize: String
-        /**
-         * The permanent generation size of JVM garbage collection.
-         */
-        get() = permSizeProperty.get()
-        set(permSize) {
-            permSizeProperty.set(permSize)
+    val uuidProperty: StringProperty = SimpleStringProperty(this, "uuid", "")
+    var uuid: String
+        get() = uuidProperty.get()
+        set(value) {
+            uuidProperty.set(value)
         }
 
     val maxMemoryProperty: IntegerProperty =
@@ -171,11 +167,6 @@ class VersionSetting : Cloneable {
             serverIpProperty.set(serverIp)
         }
 
-    val scaleFactorProperty: IntegerProperty = SimpleIntegerProperty(this, "newScaleFactor", 100)
-    var scaleFactor: Int
-        get() = scaleFactorProperty.get()
-        set(v) = scaleFactorProperty.set(v)
-
     /**
      * 0 - .minecraft<br></br>
      * 1 - .minecraft/versions/&lt;version&gt;/<br></br>
@@ -195,6 +186,13 @@ class VersionSetting : Cloneable {
             beGestureProperty.set(beGesture)
         }
 
+    val useOpenglProperty: BooleanProperty = SimpleBooleanProperty(this, "useOpengl", true)
+    var isUseOpengl: Boolean
+        get() = useOpenglProperty.get()
+        set(v) {
+            useOpenglProperty.set(v)
+        }
+
     val vkDriverSystemProperty: BooleanProperty =
         SimpleBooleanProperty(this, "vulkanDriverSystem", false)
     var isVKDriverSystem: Boolean
@@ -212,7 +210,7 @@ class VersionSetting : Cloneable {
         }
 
     val rendererProperty: StringProperty =
-        SimpleStringProperty(this, "render", Renderer.ID_GL4ES)
+        SimpleStringProperty(this, "render", Renderer.ID_NGGL4ES)
     var renderer: String
         get() = rendererProperty.get()
         set(renderer) {
@@ -235,6 +233,29 @@ class VersionSetting : Cloneable {
             pojavBigCoreProperty.set(pojavBigCore)
         }
 
+    val notCheckModProperty: BooleanProperty =
+        SimpleBooleanProperty(this, "notCheckMod", false)
+    var isNotCheckMod: Boolean
+        get() = notCheckModProperty.get()
+        set(value) {
+            notCheckModProperty.set(value)
+        }
+
+    var debugLogProperty: BooleanProperty = SimpleBooleanProperty(this, "debugLog", false)
+    var isDebugLog: Boolean
+        get() = debugLogProperty.get()
+        set(value) {
+            debugLogProperty.set(value)
+        }
+
+    var forceResolutionProperty: BooleanProperty =
+        SimpleBooleanProperty(this, "forceResolution", false)
+    var isForceResolution: Boolean
+        get() = forceResolutionProperty.get()
+        set(value) {
+            forceResolutionProperty.set(value)
+        }
+
     fun checkController() {
         Controllers.addCallback {
             Controllers.checkControllers()
@@ -249,7 +270,6 @@ class VersionSetting : Cloneable {
     fun addPropertyChangedListener(listener: InvalidationListener?) {
         usesGlobalProperty.addListener(listener)
         javaProperty.addListener(listener)
-        permSizeProperty.addListener(listener)
         maxMemoryProperty.addListener(listener)
         minMemoryProperty.addListener(listener)
         autoMemoryProperty.addListener(listener)
@@ -258,21 +278,24 @@ class VersionSetting : Cloneable {
         notCheckGameProperty.addListener(listener)
         notCheckJVMProperty.addListener(listener)
         serverIpProperty.addListener(listener)
-        scaleFactorProperty.addListener(listener)
         isolateGameDirProperty.addListener(listener)
         beGestureProperty.addListener(listener)
+        useOpenglProperty.addListener(listener)
         vkDriverSystemProperty.addListener(listener)
         controllerProperty.addListener(listener)
         rendererProperty.addListener(listener)
         driverProperty.addListener(listener)
         pojavBigCoreProperty.addListener(listener)
+        uuidProperty.addListener(listener)
+        notCheckModProperty.addListener(listener)
+        debugLogProperty.addListener(listener)
+        forceResolutionProperty.addListener(listener)
     }
 
     public override fun clone(): VersionSetting {
         return VersionSetting().also {
             it.isUsesGlobal = isUsesGlobal
             it.java = java
-            it.permSize = permSize
             it.maxMemory = maxMemory
             it.minMemory = minMemory
             it.isAutoMemory = isAutoMemory
@@ -281,14 +304,18 @@ class VersionSetting : Cloneable {
             it.isNotCheckGame = isNotCheckGame
             it.isNotCheckJVM = isNotCheckJVM
             it.serverIp = serverIp
-            it.scaleFactor = scaleFactor
             it.isIsolateGameDir = isIsolateGameDir
             it.isBeGesture = isBeGesture
+            it.isUseOpengl = isUseOpengl
             it.isVKDriverSystem = isVKDriverSystem
             it.controller = controller
             it.renderer = renderer
             it.driver = driver
             it.isPojavBigCore = isPojavBigCore
+            it.uuid = uuid
+            it.isNotCheckMod = isNotCheckMod
+            it.isDebugLog = isDebugLog
+            it.isForceResolution = isForceResolution
         }
     }
 
@@ -309,19 +336,22 @@ class VersionSetting : Cloneable {
                 )
                 addProperty("minMemory", src.minMemory)
                 addProperty("autoMemory", src.isAutoMemory)
-                addProperty("permSize", src.permSize)
                 addProperty("serverIp", src.serverIp)
                 addProperty("java", src.java)
-                addProperty("newScaleFactor", src.scaleFactor)
                 addProperty("notCheckGame", src.isNotCheckGame)
                 addProperty("notCheckJVM", src.isNotCheckJVM)
                 addProperty("beGesture", src.isBeGesture)
+                addProperty("useOpengl", src.isUseOpengl)
                 addProperty("vulkanDriverSystem", src.isVKDriverSystem)
                 addProperty("controller", src.controller)
                 addProperty("renderer", src.renderer)
                 addProperty("driver", src.driver)
                 addProperty("isolateGameDir", src.isIsolateGameDir)
                 addProperty("pojavBigCore", src.isPojavBigCore)
+                addProperty("uuid", src.uuid)
+                addProperty("notCheckMod", src.isNotCheckMod)
+                addProperty("debugLog", src.isDebugLog)
+                addProperty("forceResolution", src.isForceResolution)
             }
         }
 
@@ -345,22 +375,25 @@ class VersionSetting : Cloneable {
                 vs.maxMemory = maxMemoryN
                 vs.minMemory = json["minMemory"]?.asInt
                 vs.isAutoMemory = json["autoMemory"]?.asBoolean ?: true
-                vs.permSize = json["permSize"]?.asString ?: ""
                 vs.serverIp = json["serverIp"]?.asString ?: ""
                 vs.java =
                     JavaManager.javaList.find { it.name == json["java"]?.asString }?.name
                         ?: "Auto"
-                vs.scaleFactor = json["newScaleFactor"]?.asInt ?: 100
                 vs.isNotCheckGame = json["notCheckGame"]?.asBoolean ?: false
                 vs.isNotCheckJVM = json["notCheckJVM"]?.asBoolean ?: false
                 vs.isBeGesture = json["beGesture"]?.asBoolean ?: false
+                vs.isUseOpengl = json["useOpengl"]?.asBoolean ?: false
                 vs.isVKDriverSystem = json["vulkanDriverSystem"]?.asBoolean ?: false
                 vs.controller = json["controller"]?.asString ?: ("00000000")
                 vs.renderer =
-                    json["renderer"]?.asString ?: Renderer.ID_GL4ES
+                    json["renderer"]?.asString ?: Renderer.ID_NGGL4ES
                 vs.driver = json["driver"]?.asString ?: "Turnip"
                 vs.isIsolateGameDir = json["isolateGameDir"]?.asBoolean ?: false
                 vs.isPojavBigCore = json["pojavBigCore"]?.asBoolean ?: false
+                vs.uuid = json["uuid"]?.asString ?: ""
+                vs.isNotCheckMod = json["notCheckMod"]?.asBoolean ?: false
+                vs.isDebugLog = json["debugLog"]?.asBoolean ?: false
+                vs.isForceResolution = json["forceResolution"]?.asBoolean ?: false
             }
         }
 

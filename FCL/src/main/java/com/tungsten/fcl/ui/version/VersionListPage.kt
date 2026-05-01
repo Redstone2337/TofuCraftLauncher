@@ -5,6 +5,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.gson.JsonParseException
 import com.tungsten.fcl.R
 import com.tungsten.fcl.activity.MainActivity
@@ -27,7 +28,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.Locale
-import java.util.concurrent.Callable
 import java.util.logging.Level
 import java.util.stream.Collectors
 
@@ -55,16 +55,66 @@ class VersionListPage(context: Context?, id: Int, parent: FCLUILayout?, resId: I
             override fun afterTextChanged(s: Editable) {
                 val text = s.toString()
                 if (text.isEmpty()) {
-                    binding.versionList.setAdapter(adapter)
+                    binding.versionList.adapter = adapter
                 } else {
-                    val newAdapter =
-                        VersionListAdapter(context, children.filter {
-                            it.version.lowercase(
-                                Locale.getDefault()
-                            ).contains(text.lowercase(Locale.getDefault()))
-                        } as ArrayList)
-                    binding.versionList.setAdapter(newAdapter)
+                    binding.versionList.adapter = VersionListAdapter(context, children.filter {
+                        it.version.lowercase(
+                            Locale.getDefault()
+                        ).contains(text.lowercase(Locale.getDefault()))
+                    } as ArrayList)
                 }
+            }
+        }
+        binding.category.setOnCheckedChangeListener { _, i ->
+            when (i) {
+                R.id.all -> {
+                    binding.versionList.adapter = adapter
+                }
+
+                R.id.fabric -> {
+                    binding.versionList.adapter = VersionListAdapter(
+                        context,
+                        children.filter {
+                            it.libraries.split(",").find { lib ->
+                                lib.contains(":") && lib.contains("Fabric")
+                            } != null
+                        } as ArrayList
+                    )
+                }
+
+                R.id.forge -> {
+                    binding.versionList.adapter = VersionListAdapter(
+                        context,
+                        children.filter {
+                            it.libraries.split(",").find { lib ->
+                                lib.contains(":") && lib.contains("Forge") && !lib.contains("NeoForge")
+                            } != null
+                        } as ArrayList
+                    )
+                }
+
+                R.id.neoforge -> {
+                    binding.versionList.adapter = VersionListAdapter(
+                        context,
+                        children.filter {
+                            it.libraries.split(",").find { lib ->
+                                lib.contains(":") && lib.contains("NeoForge")
+                            } != null
+                        } as ArrayList
+                    )
+                }
+
+                R.id.other -> {
+                    binding.versionList.adapter = VersionListAdapter(
+                        context,
+                        children.filter {
+                            it.libraries.split(",").none { lib ->
+                                lib.contains("Fabric") || lib.contains("Forge") || lib.contains("NeoForge")
+                            }
+                        } as ArrayList
+                    )
+                }
+
             }
         }
     }
@@ -75,15 +125,16 @@ class VersionListPage(context: Context?, id: Int, parent: FCLUILayout?, resId: I
 
     fun refreshProfile() {
         val adapter = ProfileListAdapter(context, profiles)
-        binding.profileList.setAdapter(adapter)
+        binding.profileList.adapter = adapter
     }
 
     private fun loadVersions(profile: Profile) {
         MainActivity.getInstance().lifecycleScope.launch {
+            binding.category.check(R.id.all)
             binding.search.removeTextChangedListener(textWatcher)
             binding.search.setText("")
-            binding.refresh.setEnabled(false)
-            binding.versionList.visibility = View.GONE
+            binding.refresh.isEnabled = false
+            binding.layout.visibility = View.GONE
             binding.progress.visibility = View.VISIBLE
         }
         val repository = profile.repository
@@ -92,7 +143,7 @@ class VersionListPage(context: Context?, id: Int, parent: FCLUILayout?, resId: I
                 children = withContext(Dispatchers.IO) {
                     repository.displayVersions
                         .parallel()
-                        .map<VersionListItem> { version: Version ->
+                        .map { version: Version ->
                             val game = profile.repository.getGameVersion(version.id)
                             val libraries =
                                 StringBuilder(game.orElse(context.getString(R.string.message_unknown)))
@@ -159,15 +210,22 @@ class VersionListPage(context: Context?, id: Int, parent: FCLUILayout?, resId: I
                         context,
                         children as ArrayList
                     )
-                    binding.versionList.setAdapter(adapter)
-                    binding.refresh.setEnabled(true)
-                    binding.versionList.visibility = View.VISIBLE
+                    binding.versionList.adapter = adapter
+                    binding.versionList.layoutManager = LinearLayoutManager(context)
+                    binding.refresh.isEnabled = true
+                    if (children.isNotEmpty()) {
+                        binding.layout.visibility = View.VISIBLE
+                    }
                     binding.progress.visibility = View.GONE
                     binding.search.addTextChangedListener(textWatcher)
+                    val selected = children.find { it.selectedProperty().get() }
+                    if (selected != null) {
+                        binding.versionList.scrollToPosition(children.indexOf(selected))
+                    }
                 }
                 children.forEach {
                     it.selectedProperty().bind(
-                        Bindings.createBooleanBinding(Callable {
+                        Bindings.createBooleanBinding({
                             profile.selectedVersionProperty().get() == it.version
                         }, profile.selectedVersionProperty())
                     )

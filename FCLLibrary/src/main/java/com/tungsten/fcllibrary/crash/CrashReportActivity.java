@@ -1,13 +1,10 @@
 package com.tungsten.fcllibrary.crash;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.core.content.FileProvider;
@@ -16,6 +13,7 @@ import com.tungsten.fcllibrary.R;
 import com.tungsten.fcllibrary.component.FCLActivity;
 import com.tungsten.fcllibrary.component.view.FCLButton;
 import com.tungsten.fcllibrary.component.view.FCLTextView;
+import com.tungsten.fcllibrary.util.LogSharingUtilsKt;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,11 +24,10 @@ public class CrashReportActivity extends FCLActivity implements View.OnClickList
 
     private FCLButton restart;
     private FCLButton close;
-    private FCLButton copy;
+    private FCLButton upload;
     private FCLButton share;
 
     private FCLTextView error;
-
     private CrashReporterConfig config;
 
     @Override
@@ -42,18 +39,17 @@ public class CrashReportActivity extends FCLActivity implements View.OnClickList
         config = CrashReporter.getConfigFromIntent(getIntent());
 
         if (config == null) {
-            // This should never happen - Just finish the activity to avoid a recursive crash.
             finish();
         }
 
         restart = findViewById(R.id.restart);
         close = findViewById(R.id.close);
-        copy = findViewById(R.id.copy);
+        upload = findViewById(R.id.upload);
         share = findViewById(R.id.share);
 
         restart.setOnClickListener(this);
         close.setOnClickListener(this);
-        copy.setOnClickListener(this);
+        upload.setOnClickListener(this);
         share.setOnClickListener(this);
 
         error = findViewById(R.id.error);
@@ -68,8 +64,8 @@ public class CrashReportActivity extends FCLActivity implements View.OnClickList
         if (view == close) {
             CrashReporter.closeApplication(this, config);
         }
-        if (view == copy) {
-            copyErrorToClipboard();
+        if (view == upload) {
+            LogSharingUtilsKt.uploadLog(this, error.getText().toString());
         }
         if (view == share) {
             try {
@@ -85,17 +81,6 @@ public class CrashReportActivity extends FCLActivity implements View.OnClickList
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        }
-    }
-
-    private void copyErrorToClipboard() {
-        String errorInformation = CrashReporter.getAllErrorDetailsFromIntent(this, getIntent());
-        ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-        // Are there any devices without clipboard...?
-        if (clipboard != null) {
-            ClipData clip = ClipData.newPlainText(null, errorInformation);
-            clipboard.setPrimaryClip(clip);
-            Toast.makeText(this, R.string.crash_reporter_toast, Toast.LENGTH_SHORT).show();
         }
     }
 

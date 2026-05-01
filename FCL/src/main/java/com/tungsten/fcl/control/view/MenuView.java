@@ -20,12 +20,9 @@ import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.RequestBuilder;
-import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.resource.gif.GifDrawable;
 import com.bumptech.glide.request.target.CustomViewTarget;
 import com.bumptech.glide.request.transition.Transition;
-import com.tungsten.fcl.FCLApplication;
 import com.tungsten.fcl.R;
 import com.tungsten.fcl.control.GameMenu;
 import com.tungsten.fcl.util.AndroidUtils;
@@ -45,22 +42,23 @@ public class MenuView extends View {
     private GameMenu gameMenu;
 
     private boolean isGif = false;
+
     public MenuView(Context context) {
         super(context);
-        this.screenWidth = AndroidUtils.getScreenWidth(FCLApplication.getCurrentActivity());
-        this.screenHeight = AndroidUtils.getScreenHeight(FCLApplication.getCurrentActivity());
+        this.screenWidth = AndroidUtils.getScreenWidth();
+        this.screenHeight = AndroidUtils.getScreenHeight();
     }
 
     public MenuView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
-        this.screenWidth = AndroidUtils.getScreenWidth(FCLApplication.getCurrentActivity());
-        this.screenHeight = AndroidUtils.getScreenHeight(FCLApplication.getCurrentActivity());
+        this.screenWidth = AndroidUtils.getScreenWidth();
+        this.screenHeight = AndroidUtils.getScreenHeight();
     }
 
     public MenuView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        this.screenWidth = AndroidUtils.getScreenWidth(FCLApplication.getCurrentActivity());
-        this.screenHeight = AndroidUtils.getScreenHeight(FCLApplication.getCurrentActivity());
+        this.screenWidth = AndroidUtils.getScreenWidth();
+        this.screenHeight = AndroidUtils.getScreenHeight();
     }
 
     public void setup(GameMenu gameMenu) {
@@ -119,7 +117,8 @@ public class MenuView extends View {
                 protected void onResourceCleared(@Nullable Drawable placeholder) {
                 }
             });
-        } else {
+        }
+        if (!isGif && icon == null) {
             icon = BitmapFactory.decodeResource(getContext().getResources(), R.drawable.img_app);
         }
     }

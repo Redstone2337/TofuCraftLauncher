@@ -62,6 +62,14 @@ class MenuSetting {
             showFpsProperty.set(v)
         }
 
+    val showMemoryProperty: BooleanProperty =
+        SimpleBooleanProperty(this, "showMemory", false)
+    var isShowMemory: Boolean
+        get() = showMemoryProperty.get()
+        set(v) {
+            showMemoryProperty.set(v)
+        }
+
     val disableSoftKeyAdjustProperty: BooleanProperty =
         SimpleBooleanProperty(this, "disableSoftKeyAdjust", false)
     var isDisableSoftKeyAdjust: Boolean
@@ -82,6 +90,14 @@ class MenuSetting {
         get() = autoShowLogProperty.get()
         set(v) {
             autoShowLogProperty.set(v)
+        }
+
+    val performanceModeProperty: BooleanProperty =
+        SimpleBooleanProperty(this, "performanceMode", false)
+    var isPerformanceMode
+        get() = performanceModeProperty.get()
+        set(v) {
+            performanceModeProperty.set(v)
         }
 
     val menuPositionXProperty: DoubleProperty =
@@ -223,9 +239,11 @@ class MenuSetting {
         lockMenuViewProperty.addListener(listener)
         hideMenuViewViewProperty.addListener(listener)
         showFpsProperty.addListener(listener)
+        showMemoryProperty.addListener(listener)
         disableSoftKeyAdjustProperty.addListener(listener)
         showLogProperty.addListener(listener)
         autoShowLogProperty.addListener(listener)
+        performanceModeProperty.addListener(listener)
         menuPositionXProperty.addListener(listener)
         menuPositionYProperty.addListener(listener)
         disableGestureProperty.addListener(listener)
@@ -258,9 +276,11 @@ class MenuSetting {
                 addProperty("lockMenuView", src.isLockMenuView)
                 addProperty("hideMenuView", src.isHideMenuView)
                 addProperty("showFps", src.isShowFps)
+                addProperty("showMemory", src.isShowMemory)
                 addProperty("disableSoftKeyAdjust", src.isDisableSoftKeyAdjust)
                 addProperty("showLog", src.isShowLog)
                 addProperty("autoShowLog", src.isAutoShowLog)
+                addProperty("performanceMode", src.isPerformanceMode)
                 addProperty("menuPositionX", src.menuPositionX)
                 addProperty("menuPositionY", src.menuPositionY)
                 addProperty("disableGesture", src.isDisableGesture)
@@ -294,9 +314,11 @@ class MenuSetting {
                 ms.isLockMenuView = json["lockMenuView"]?.asBoolean ?: false
                 ms.isHideMenuView = json["hideMenuView"]?.asBoolean ?: false
                 ms.isShowFps = json["showFps"]?.asBoolean ?: false
+                ms.isShowMemory = json["showMemory"]?.asBoolean ?: false
                 ms.isDisableSoftKeyAdjust = json["disableSoftKeyAdjust"]?.asBoolean ?: false
                 ms.isShowLog = json["showLog"]?.asBoolean ?: false
                 ms.isAutoShowLog = json["autoShowLog"]?.asBoolean ?: false
+                ms.isPerformanceMode = json["performanceMode"]?.asBoolean ?: false
                 ms.menuPositionX = json["menuPositionX"]?.asDouble ?: 0.5
                 ms.menuPositionY = json["menuPositionY"]?.asDouble ?: 0.5
                 ms.isDisableGesture = json["disableGesture"]?.asBoolean ?: false

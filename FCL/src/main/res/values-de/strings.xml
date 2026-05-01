@@ -666,8 +666,6 @@
     <string name="settings_advanced_dont_check_jvm_validity">JVM-Kompatibilität nicht überprüfen</string>
     <string name="settings_advanced_game_dir_default">Standard (.minecraft/)</string>
     <string name="settings_advanced_game_dir_independent">Isoliert in (.minecraft/versions/&lt;instance name&gt;/, außer Ressourcen und Bibliotheken)</string>
-    <string name="settings_advanced_java_permanent_generation_space">Permanenter Speicherplatz</string>
-    <string name="settings_advanced_java_permanent_generation_space_prompt">in MB</string>
     <string name="settings_advanced_jvm_args">JVM-Argumente</string>
     <string name="settings_advanced_minecraft_arguments">Launcher-Argumente</string>
     <string name="settings_advanced_minecraft_arguments_prompt">Standard</string>
@@ -676,9 +674,9 @@
 
     <string name="settings_fcl_controller">Controller</string>
     <string name="settings_fcl_controller_injector">Serverseitige Gesten</string>
-    <string name="settings_fcl_vulkan_driver_system">Zink erlauben, System-Vulkan-Treiber zu verwenden</string>
-    <string name="settings_fcl_renderer">Renderer</string>
-    <string name="settings_fcl_pojav_bigcore">Leistungskerne für Rendering erzwingen (Pojav-Kern)</string>
+    <string name="settings_fcl_vulkan_driver_system">System-Vulkan-Treiber verwenden</string>
+    <string name="settings_fcl_renderer">OpenGL-Implementierung (Renderer)</string>
+    <string name="settings_fcl_pojav_bigcore">Leistungskerne für Rendering erzwingen</string>
     <string name="settings_fcl_renderer_vgpu">VGPU (OpenGL 2.1+, nur 1.17-)</string>
     <string name="settings_fcl_renderer_freedreno">Freedreno (OpenGL 4.6, nur für GPU a616-a660)</string>
 
@@ -881,7 +879,7 @@
     <string name="gamepad_dpad">D-Pad</string>
     <string name="gamepad_button_binding">Gamepad-Button-Zuordnung</string>
     <string name="joystick_r">Rechter Stick</string>
-    <string name="message_vulkan_driver_system">Aktuelle GPU ist Adreno, es wird nicht empfohlen, diese Option zu aktivieren.</string>
+    <string name="message_vulkan_driver_system">Warnung: Die Verwendung des System-Vulkan-Treibers kann zwar zu einer besseren Leistung führen, aber aufgrund von Kompatibilitätsproblemen auch Abstürze verursachen!</string>
     <string name="message_loading_controllers">Controller werden geladen...</string>
 
     <string name="installed">Installiert</string>
